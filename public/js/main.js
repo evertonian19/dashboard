@@ -1,205 +1,29 @@
-/* ------------------------------------------------------------------
-   메뉴 정의 — 이름을 바꾸거나 메뉴를 추가하려면 이 배열만 고치면 됩니다.
-   id    : 주소에 쓰이는 값 (#menu1)
-   label : 메뉴바에 보이는 이름
-   icon  : 아래 ICONS 의 키
-   render: 화면 틀을 HTML 문자열로 돌려주는 함수 (없으면 빈 화면)
-   mount : 화면이 그려진 직후 실행 — 서버에서 데이터를 받아 채웁니다 (선택)
-   wide  : true 면 본문을 화면 폭 전체로 사용
-------------------------------------------------------------------- */
-const ICONS = {
-  home:     '<path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>',
-  grid:     '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
-  chart:    '<path d="M5 20V10M12 20V4M19 20v-7"/>',
-  folder:   '<path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
-  gear:     '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
-  plus:     '<path d="M12 5v14M5 12h14"/>',
-  upload:   '<path d="M12 16V5M7 9.5L12 4.5l5 5"/><path d="M5 19h14"/>',
-  download: '<path d="M12 4v11M7 10.5l5 5 5-5"/><path d="M5 19h14"/>',
-  trash:    '<path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7"/>',
-  note:     '<path d="M5 4h14a1 1 0 011 1v10l-5 5H5a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M15 20v-5h5M8 9h8M8 13h5"/>',
-  chat:     '<path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-7l-4.5 3.5V17H6a2 2 0 01-2-2z"/>',
-  back:     '<path d="M14 7l-5 5 5 5"/>',
-  mail:     '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7.5l8 6 8-6"/>',
-  refresh:  '<path d="M19.5 12a7.5 7.5 0 11-2.3-5.4"/><path d="M19.5 4.5v4h-4"/>',
-  close:    '<path d="M6 6l12 12M18 6L6 18"/>',
-  check:    '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.2l2.5 2.5 4.5-5"/>',
-  pin:      '<path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/>',
-  edit:     '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
-  link:     '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
-  image:    '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/>',
-  clip:     '<path d="M19 11.5l-7.2 7.2a4.2 4.2 0 01-6-6L13 5.5a2.8 2.8 0 014 4l-7 7a1.4 1.4 0 01-2-2l6.3-6.3"/>',
-  eye:      '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
-  bell:     '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5h4"/>',
-  restore:  '<path d="M4.5 12a7.5 7.5 0 102.3-5.4"/><path d="M4.5 4.5v4h4"/>',
-  pdf:      '<path d="M6 3.5h8l4 4V20a.5.5 0 01-.5.5h-11A.5.5 0 016 20z"/><path d="M14 3.5v4h4M9 13h6M9 16.5h4"/>',
-  up:       '<path d="M6 14l6-6 6 6"/>',
-  down:     '<path d="M6 10l6 6 6-6"/>',
-  sort:     '<path d="M7 5v14M4 16l3 3 3-3M17 19V5M14 8l3-3 3 3"/>',
-  disk:     '<ellipse cx="12" cy="6.5" rx="7.5" ry="3"/><path d="M4.5 6.5v11c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-11"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/>',
+// 진입점: 모듈을 불러오고 셸을 시작합니다.
+import { api, jsonBody, toLogin } from './core/api.js';
+import { setSubTabs } from './core/chrome.js';
+import { confirmDelete } from './core/dialogs.js';
+import { $, errLine, esc, fill, toast } from './core/dom.js';
+import { extBadge, fmtBytes, fmtDateTime, fmtTime, fmtTokens, numFmt } from './core/format.js';
+import { hooks } from './core/hooks.js';
+import { icon } from './core/icons.js';
+import { KIND_LABEL, KIND_MENU, MENUS, menuName } from './core/registry.js';
+import { config, every, lifecycle, runCleanups } from './core/state.js';
+import { acceptOf, deleteFile, extListOf, uploadFiles, wireUploader } from './core/uploads.js';
+
+hooks.show = show;
+hooks.applyMenuNames = applyMenuNames;
+
+// 각 메뉴에 화면(render)과 데이터 연결(mount)을 붙입니다.
+const VIEWS = {
+  menu1: { render: renderHome, mount: mountHome },
+  menu2: { render: renderDiagrams, mount: mountDiagrams },
+  menu3: { render: renderBoard, mount: mountBoard },
+  menu4: { render: renderDocuments, mount: mountDocuments },
+  menu5: { render: renderSettings, mount: mountSettings },
+  menu6: { render: renderMail, mount: mountMail },
+  menu7: { render: renderTodos, mount: mountTodos },
 };
-const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
-
-const MENUS = [
-  { id: 'menu1', label: 'Menu 1', icon: 'home',   render: renderHome,      mount: mountHome },
-  { id: 'menu2', label: 'Menu 2', icon: 'grid',   render: renderDiagrams,  mount: mountDiagrams },
-  { id: 'menu3', label: 'Menu 3', icon: 'note',   render: renderBoard,     mount: mountBoard },
-  { id: 'menu4', label: 'Menu 4', icon: 'folder', render: renderDocuments, mount: mountDocuments },
-  { id: 'menu5', label: 'Menu 5', icon: 'gear',   render: renderSettings,  mount: mountSettings, foot: true },  // 메뉴바 맨 아래 톱니바퀴
-  { id: 'menu6', label: 'Menu 6', icon: 'mail',   render: renderMail,      mount: mountMail },
-  { id: 'menu7', label: 'Menu 7', icon: 'check',  render: renderTodos,     mount: mountTodos },
-];
-// 파일 종류 → 그 파일을 다루는 메뉴
-MENUS.forEach((m) => { m.base = m.label; });
-const menuName = (id) => MENUS.find((m) => m.id === id)?.label || '';
-const KIND_MENU = { diagram: 'menu2', document: 'menu4' };
-const KIND_LABEL = { diagram: '다이어그램', document: '문서', post: '게시글', comment: '댓글', mail: '메일 계정' };
-
-/* ------------------------------------------------------------------
-   공통 도구
-------------------------------------------------------------------- */
-const $ = (sel, root = document) => root.querySelector(sel);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-let CONFIG = { kinds: {}, max_upload: 0, menus: {}, home: {}, trash_days: 30, pdf_sources: [] };
-
-// 로그인이 풀렸으면 로그인 화면으로 (보던 메뉴는 주소에 남겨 둡니다)
-const toLogin = () => location.replace('/login.html' + location.hash);
-
-async function api(path, opts = {}) {
-  let res;
-  try {
-    res = await fetch('/api' + path, { ...opts, headers: { 'X-Requested-With': 'dashboard', ...(opts.headers || {}) } });
-  } catch (e) {
-    throw new Error('서버에 연결할 수 없어요');
-  }
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401) { toLogin(); throw new Error('로그인이 필요해요'); }
-  if (!res.ok) throw new Error(data.error || `요청에 실패했어요 (${res.status})`);
-  return data;
-}
-
-const fmtBytes = (n) => {
-  if (n < 1024) return `${n}B`;
-  const units = ['KB', 'MB', 'GB'];
-  let v = n / 1024, i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-  return `${v >= 100 ? Math.round(v) : v.toFixed(1)}${units[i]}`;
-};
-const tokenFmt = new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 1 });
-const numFmt = new Intl.NumberFormat('ko-KR');
-const fmtTokens = (n) => tokenFmt.format(n || 0);
-const dateTimeFmt = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-const timeFmt = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-const fmtDateTime = (iso) => dateTimeFmt.format(new Date(iso));
-const fmtTime = (iso) => timeFmt.format(new Date(iso));
-const fmtLeft = (ms) => {
-  const min = Math.max(0, Math.round(ms / 60000));
-  return min >= 60 ? `${Math.floor(min / 60)}시간 ${min % 60}분` : `${min}분`;
-};
-const extBadge = (ext) => {
-  const e = String(ext).replace('.', '').toLowerCase();
-  return `<span class="ext-badge ext-${esc(e)}">${esc(e.slice(0, 4))}</span>`;
-};
-
-function toast(message, isError = false) {
-  const el = document.createElement('div');
-  el.className = 'toast' + (isError ? ' error' : '');
-  el.textContent = message;
-  $('#toasts').appendChild(el);
-  setTimeout(() => el.remove(), isError ? 5000 : 2600);
-}
-
-function confirmDelete(name, what = '파일', okLabel = '삭제') {
-  const dlg = $('#confirmDialog');
-  const days = CONFIG.trash_days || 30;
-  const text = {
-    '계정 연결': `"${name}" 연결을 해제합니다. 메일함의 메일은 그대로예요.`,
-    '기록 전체': '최근 활동 기록을 모두 지웁니다. 파일과 게시글은 그대로예요.',
-    '카테고리': `"${name}" 카테고리를 삭제합니다. 이 카테고리의 글은 지워지지 않고 미분류로 바뀌어요.`,
-    '파일': `"${name}" 파일을 휴지통으로 옮깁니다. ${days}일 안에 설정 메뉴에서 복구할 수 있어요.`,
-    '게시글': `"${name}" 게시글을 휴지통으로 옮깁니다. ${days}일 안에 설정 메뉴에서 복구할 수 있어요.`,
-    '메모': `"${name}" 메모를 삭제합니다. 되돌릴 수 없어요.`,
-    '영구 삭제': `"${name}" 항목을 완전히 삭제합니다. 되돌릴 수 없어요.`,
-    '휴지통 비우기': '휴지통의 모든 항목을 완전히 삭제합니다. 되돌릴 수 없어요.',
-  }[what] || `"${name}" ${what}을 삭제합니다. 되돌릴 수 없어요.`;
-  $('#confirmTitle').textContent = what === '계정 연결' ? '연결을 해제할까요?' : what === '휴지통 비우기' ? '휴지통을 비울까요?' : '삭제할까요?';
-  $('#confirmText').textContent = text;
-  $('#confirmDialog .btn-danger').textContent = okLabel;
-  return new Promise((resolve) => {
-    const done = (ok) => {
-      dlg.removeEventListener('click', onClick);
-      dlg.removeEventListener('cancel', onEsc);
-      if (dlg.open) dlg.close();
-      resolve(ok);
-    };
-    const onClick = (e) => {
-      const btn = e.target.closest('button[value]');
-      if (btn) { e.preventDefault(); done(btn.value === 'ok'); }
-    };
-    const onEsc = () => done(false);
-    dlg.addEventListener('click', onClick);
-    dlg.addEventListener('cancel', onEsc);
-    dlg.showModal();
-  });
-}
-
-// 화면을 떠날 때 정리할 타이머들
-let cleanups = [];
-const every = (ms, fn) => { const t = setInterval(fn, ms); cleanups.push(() => clearInterval(t)); };
-
-/* ------------------------------------------------------------------
-   파일 등록 · 삭제 (Menu 2, Menu 4 공용)
-------------------------------------------------------------------- */
-async function uploadFiles(kind, fileList) {
-  const files = [...fileList];
-  if (!files.length) return null;
-  let last = null, okCount = 0;
-  for (const file of files) {
-    try {
-      if (CONFIG.max_upload && file.size > CONFIG.max_upload) throw new Error(`파일이 너무 커요 (최대 ${fmtBytes(CONFIG.max_upload)})`);
-      const res = await api(`/files?kind=${kind}&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
-      last = res.file; okCount++;
-    } catch (e) {
-      toast(`${file.name}: ${e.message}`, true);
-    }
-  }
-  if (okCount) toast(okCount === 1 ? `${last.name} 등록했어요` : `${okCount}개 파일을 등록했어요`);
-  return last;
-}
-
-const acceptOf = (kind) => (CONFIG.kinds[kind]?.ext || []).join(',');
-const extListOf = (kind) => (CONFIG.kinds[kind]?.ext || []).map((e) => e.slice(1)).join(', ');
-
-// 버튼(파일 선택)과 끌어다 놓기를 한 영역에 연결
-function wireUploader({ kind, button, dropZone, onDone }) {
-  const input = document.createElement('input');
-  input.type = 'file'; input.multiple = true; input.accept = acceptOf(kind); input.hidden = true;
-  document.body.appendChild(input);
-  cleanups.push(() => input.remove());
-  const run = async (files) => { const last = await uploadFiles(kind, files); if (last) onDone(last); };
-  input.addEventListener('change', () => { run(input.files); input.value = ''; });
-  button?.addEventListener('click', () => input.click());
-  if (dropZone) {
-    let depth = 0;
-    dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); depth++; dropZone.classList.add('over'); });
-    dropZone.addEventListener('dragover', (e) => e.preventDefault());
-    dropZone.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; dropZone.classList.remove('over'); } });
-    dropZone.addEventListener('drop', (e) => { e.preventDefault(); depth = 0; dropZone.classList.remove('over'); run(e.dataTransfer.files); });
-  }
-}
-
-async function deleteFile(file) {
-  if (!(await confirmDelete(file.name))) return false;
-  try {
-    await api(`/files/${file.id}`, { method: 'DELETE' });
-    toast(`${file.name} 휴지통으로 옮겼어요`);
-    return true;
-  } catch (e) {
-    toast(e.message, true);
-    return false;
-  }
-}
+MENUS.forEach((m) => Object.assign(m, VIEWS[m.id]));
 
 /* ------------------------------------------------------------------
    Menu 1: 메인 대시보드
@@ -296,16 +120,12 @@ function renderHome(menu) {
     </section>`;
 }
 
-// 화면에 아직 그 요소가 있을 때만 그립니다 (다른 메뉴로 옮긴 뒤 도착한 응답 무시).
-const fill = (sel, html) => { const el = $(sel); if (el) el.innerHTML = html; return el; };
-const errLine = (e) => `<p class="empty-inline">${esc(e.message)}</p>`;
-
 // 메인 화면 카드: [id, 이름]. Claude 사용량은 항상 맨 위이고 숨기기만 됩니다.
 const HOME_CARDS = [['usage', 'Claude 사용량'], ['diagram', '다이어그램 수'], ['document', '문서 수'], ['size', '저장 용량'],
   ['todos', '오늘 할 일'], ['weather', '날씨'], ['links', '즐겨찾기'], ['system', '서버 상태'], ['memos', '메모'],
   ['oci', 'Oracle VM'], ['activity', '최근 활동'], ['tokens', '최근 7일 토큰']];
 const homeLayout = () => {
-  const saved = CONFIG.home || {};
+  const saved = config.home || {};
   const ids = HOME_CARDS.map(([id]) => id);
   const order = [...(saved.order || []).filter((id) => ids.includes(id)), ...ids.filter((id) => !(saved.order || []).includes(id))];
   return { order, hidden: new Set(saved.hidden || []) };
@@ -366,7 +186,7 @@ function openHomeEditor() {
     if (todo === 'reset') { order = HOME_CARDS.map(([id]) => id); hidden = new Set(); draw(); }
     if (todo === 'save') {
       try {
-        CONFIG.home = (await api('/settings/home', jsonBody({ order, hidden: [...hidden] }))).home;
+        config.home = (await api('/settings/home', jsonBody({ order, hidden: [...hidden] }))).home;
         dlg.close();
         show();
         toast('메인 화면 구성을 저장했어요');
@@ -541,7 +361,7 @@ function mountHome() {
   start(cardOn('oci'), loadOci, 30000);
   const onVisible = () => { if (!document.hidden && usageOn) loadUsage(); };
   document.addEventListener('visibilitychange', onVisible);
-  cleanups.push(() => document.removeEventListener('visibilitychange', onVisible));
+  lifecycle.cleanups.push(() => document.removeEventListener('visibilitychange', onVisible));
 }
 
 async function loadSummary() {
@@ -730,7 +550,7 @@ function renderSettings(menu) {
     <section class="card" style="margin-top:16px">
       <div class="card-head"><h2 class="card-title">휴지통</h2><button class="btn btn-ghost btn-sm" type="button" id="trashEmpty" hidden>휴지통 비우기</button></div>
       <ul class="rows" id="trash"><li class="empty-inline">불러오는 중…</li></ul>
-      <p class="card-note">삭제한 파일과 게시글은 ${CONFIG.trash_days || 30}일 동안 보관된 뒤 자동으로 완전히 삭제됩니다.</p>
+      <p class="card-note">삭제한 파일과 게시글은 ${config.trash_days || 30}일 동안 보관된 뒤 자동으로 완전히 삭제됩니다.</p>
     </section>
     <section class="card" style="margin-top:16px">
       <div class="card-head"><h2 class="card-title">로그인 기록</h2><span class="muted">최근 30건</span></div>
@@ -744,7 +564,7 @@ function mountSettings() {
     const labels = {};
     new FormData(e.target).forEach((v, k) => { if (String(v).trim()) labels[k] = String(v).trim(); });
     try {
-      CONFIG.menus = (await api('/settings/menus', jsonBody({ labels }))).menus;
+      config.menus = (await api('/settings/menus', jsonBody({ labels }))).menus;
       applyMenuNames();
       show();
       toast('메뉴 이름을 저장했어요');
@@ -1156,7 +976,7 @@ async function mountDocuments(menu, params) {
       </div>
       <div class="row-actions">
         ${PREVIEW_EXT.includes(f.ext) ? `<button class="btn btn-soft btn-sm" type="button" data-preview="${f.id}" aria-label="${esc(f.name)} 미리보기">${icon('eye')}<span>미리보기</span></button>` : ''}
-        ${(CONFIG.pdf_sources || []).includes(f.ext) ? `<button class="btn btn-soft btn-sm" type="button" data-pdf="${f.id}" aria-label="${esc(f.name)} PDF로 변환">${icon('pdf')}<span>PDF로 변환</span></button>` : ''}
+        ${(config.pdf_sources || []).includes(f.ext) ? `<button class="btn btn-soft btn-sm" type="button" data-pdf="${f.id}" aria-label="${esc(f.name)} PDF로 변환">${icon('pdf')}<span>PDF로 변환</span></button>` : ''}
         <a class="btn btn-soft btn-sm" href="/api/files/${f.id}/raw?download" download aria-label="${esc(f.name)} 내려받기">${icon('download')}<span>내려받기</span></a>
         <button class="btn btn-ghost btn-sm" type="button" data-del="${f.id}" aria-label="${esc(f.name)} 삭제">${icon('trash')}<span>삭제</span></button>
       </div>
@@ -1197,7 +1017,6 @@ async function mountDocuments(menu, params) {
 /* ------------------------------------------------------------------
    Menu 3: 게시판 — 목록(#menu3) · 글쓰기(#menu3?write=1) · 글 보기(#menu3?post=ID)
 ------------------------------------------------------------------- */
-const jsonBody = (data) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 const TEXT_COLORS = [['빨강', '#E5484D'], ['주황', '#E8850C'], ['초록', '#2E9E5B'], ['파랑', '#3B6FE0'], ['보라', '#8E5CD9']];
 const HILITE = 'rgba(255, 214, 0, 0.45)';
 
@@ -1393,7 +1212,7 @@ async function boardWrite(root, menu, editId) {
   const picker = document.createElement('input');
   picker.type = 'file'; picker.hidden = true;
   document.body.appendChild(picker);
-  cleanups.push(() => picker.remove());
+  lifecycle.cleanups.push(() => picker.remove());
   const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
   picker.addEventListener('change', async () => {
     const file = picker.files[0];
@@ -1401,7 +1220,7 @@ async function boardWrite(root, menu, editId) {
     picker.value = '';
     if (!file) return;
     try {
-      if (CONFIG.max_upload && file.size > CONFIG.max_upload) throw new Error(`파일이 너무 커요 (최대 ${fmtBytes(CONFIG.max_upload)})`);
+      if (config.max_upload && file.size > config.max_upload) throw new Error(`파일이 너무 커요 (최대 ${fmtBytes(config.max_upload)})`);
       const { file: saved } = await api(`/files?kind=attachment&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
       insertHtml(asImage ? `<img src="/api/files/${saved.id}/raw" alt=""><br>`
         : `<a href="/api/files/${saved.id}/raw?download">${esc(saved.name)}</a>&nbsp;`);
@@ -1773,7 +1592,7 @@ function drawNav() {
 }
 // 설정에서 바꾼 메뉴 이름을 적용
 function applyMenuNames() {
-  MENUS.forEach((m) => { m.label = (CONFIG.menus || {})[m.id] || m.base; });
+  MENUS.forEach((m) => { m.label = (config.menus || {})[m.id] || m.base; });
   drawNav();
 }
 drawNav();
@@ -1785,8 +1604,7 @@ function route() {
 
 function show() {
   const { menu, params } = route();
-  cleanups.forEach((fn) => fn());
-  cleanups = [];
+  runCleanups();
   document.querySelectorAll('#sidebar .nav-item, #topNav .topnav-item').forEach((a) => {
     if (a.dataset.id === menu.id) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -1800,13 +1618,7 @@ function show() {
   if (menu.mount) menu.mount(menu, params);
 }
 
-// FM 상단 컨텍스트: 뒤로/앞으로, 서브탭 줄, 하단 상태 줄
 const ctxTitle = $('#ctxTitle');
-const subSlot = $('#subSlot');
-// el 을 보조 메뉴 바로 옮김(null 이면 비움). 링크는 그대로 동작합니다.
-function setSubTabs(el) {
-  subSlot.replaceChildren(...(el ? [el] : []));
-}
 $('#backBtn').addEventListener('click', () => history.back());
 $('#fwdBtn').addEventListener('click', () => history.forward());
 const sbClock = $('#sbClock');
@@ -1924,6 +1736,6 @@ api('/session').then((s) => {
 }).catch(() => {});
 
 window.addEventListener('hashchange', show);
-api('/config').then((c) => { CONFIG = c; applyMenuNames(); }).catch(() => {}).finally(show);
+api('/config').then((c) => { Object.assign(config, c); applyMenuNames(); }).catch(() => {}).finally(show);
 watchMail();
 setInterval(watchMail, 30000);
