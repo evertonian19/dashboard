@@ -10,7 +10,7 @@
     (function () {
       var t = new URLSearchParams(location.search).get('theme');
       try { t = t || localStorage.getItem('theme'); } catch (e) {}
-      if (t !== 'dark' && t !== 'light') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      if (t !== 'dark' && t !== 'light') t = 'dark';   // FM 기본 화면은 어두운 스킨
       document.documentElement.dataset.theme = t;
     })();
   </script>
@@ -50,6 +50,23 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         </button>
 
+        <!-- FM 상단 컨텍스트: 뒤로/앞으로 + 현재 화면 이름 -->
+        <div class="ctx">
+          <button class="icon-btn hist" type="button" id="backBtn" aria-label="뒤로" title="뒤로">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 7l-5 5 5 5"/></svg>
+          </button>
+          <button class="icon-btn hist" type="button" id="fwdBtn" aria-label="앞으로" title="앞으로">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7l5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <!-- 클럽 문장 + 주 메뉴 (FM27: 상단에 고정된 주 메뉴 바) -->
+        <a class="club" href="#menu1" aria-label="처음 화면">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="club-name">My Site</span>
+        </a>
+        <nav class="topnav" id="topNav" aria-label="주 메뉴"><!-- js/app.js 의 MENUS 로 채워집니다 --></nav>
+
         <div class="search-wrap" id="searchWrap">
           <label class="search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
@@ -70,7 +87,19 @@
         </div>
       </header>
 
+      <!-- 보조 메뉴 바: 현재 위치 + 화면이 setSubTabs() 로 채우는 탭 -->
+      <nav class="subtabs" id="subTabs" aria-label="보조 메뉴">
+        <div class="crumb" aria-live="polite"><span class="crumb-site">My Site</span><i aria-hidden="true">›</i><b id="ctxTitle"></b></div>
+        <div class="sub-slot" id="subSlot"></div>
+      </nav>
+
       <main class="main" id="main" tabindex="-1"><!-- 현재 메뉴 화면이 여기에 그려집니다 --></main>
+
+      <footer class="statusbar" aria-hidden="true">
+        <span id="sbClock"></span>
+        <span class="sb-spacer"></span>
+        <span class="sb-live">● 연결됨</span>
+      </footer>
     </div>
   </div>
 

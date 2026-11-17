@@ -258,6 +258,7 @@ function renderHome(menu) {
       <article class="card span-2" data-card="links">
         <div class="card-head"><h2 class="card-title">즐겨찾기</h2></div>
         <div class="link-tiles" id="links"></div>
+        <p class="muted link-hint" id="linkHint" hidden>타일을 끌어서 순서를 바꿀 수 있어요</p>
         <form class="inline-form" id="linkForm">
           <input class="field" id="linkTitle" type="text" maxlength="40" placeholder="이름" aria-label="즐겨찾기 이름" autocomplete="off">
           <input class="field" id="linkUrl" type="text" placeholder="주소 (예: naver.com)" aria-label="즐겨찾기 주소" autocomplete="off" required>
@@ -425,18 +426,54 @@ function mountHome() {
   });
 
   // 즐겨찾기
+  // 순서는 이 브라우저에만 저장 (localStorage). 저장 불가 환경이면 기본 순서로 보입니다.
+  const readLinkOrder = () => { try { const v = JSON.parse(localStorage.getItem('link-order')); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+  const writeLinkOrder = (ids) => { try { localStorage.setItem('link-order', JSON.stringify(ids)); } catch (e) { /* 무시 */ } };
   const loadLinks = async () => {
     try {
-      const { links } = await api('/links');
+      const { links: fetched } = await api('/links');
+      // 저장된 순서로 정렬 — 목록에 없는 새 링크는 맨 뒤(서버 순서 유지), 사라진 id는 정리
+      const rank = new Map(readLinkOrder().map((id, i) => [id, i]));
+      const at = (l, i) => (rank.has(l.id) ? rank.get(l.id) : 1e9 + i);
+      const links = fetched.map((l, i) => [l, at(l, i)]).sort((a, b) => a[1] - b[1]).map(([l]) => l);
+      writeLinkOrder(links.map((l) => l.id));
+      const hint = $('#linkHint'); if (hint) hint.hidden = links.length < 2;
       fill('#links', links.length ? links.map((l) => `
-        <div class="link-tile">
-          <a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">
+        <div class="link-tile" draggable="true" data-id="${l.id}" title="끌어서 순서 변경">
+          <a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" draggable="false" title="${esc(l.url)}">
             <span class="link-icon">${esc([...l.title][0].toUpperCase())}</span><span class="link-name">${esc(l.title)}</span>
           </a>
           <button class="icon-btn icon-btn-sm" type="button" data-link-del="${l.id}" aria-label="${esc(l.title)} 즐겨찾기 삭제" title="삭제">${icon('close')}</button>
         </div>`).join('') : '<p class="empty-inline">자주 가는 사이트를 추가해 보세요.</p>');
     } catch (e) { fill('#links', errLine(e)); }
   };
+  // 마우스로 끌어서 순서 바꾸기 (타일은 다시 그려지므로 컨테이너에 이벤트 위임)
+  const linksBox = $('#links');
+  let dragTile = null;
+  linksBox.addEventListener('dragstart', (e) => {
+    const tile = e.target.closest('.link-tile');
+    if (!tile) return;
+    dragTile = tile;
+    tile.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', tile.dataset.id); } catch (err) { /* 무시 */ }   // Firefox 는 데이터가 있어야 드래그가 시작됨
+  });
+  linksBox.addEventListener('dragover', (e) => {
+    if (!dragTile) return;
+    e.preventDefault();
+    const over = e.target.closest('.link-tile');
+    if (!over || over === dragTile) return;
+    const r = over.getBoundingClientRect();
+    const ref = e.clientX > r.left + r.width / 2 ? over.nextSibling : over;   // 가로 중앙 기준 앞/뒤
+    if (ref !== dragTile) linksBox.insertBefore(dragTile, ref);
+  });
+  linksBox.addEventListener('drop', (e) => e.preventDefault());
+  linksBox.addEventListener('dragend', () => {
+    if (!dragTile) return;
+    dragTile.classList.remove('dragging');
+    dragTile = null;
+    writeLinkOrder([...linksBox.querySelectorAll('.link-tile')].map((t) => t.dataset.id));
+  });
   $('#links').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-link-del]');
     if (!btn) return;
@@ -1233,6 +1270,8 @@ async function boardList(root, menu, filter) {
       : `<div class="empty"><div class="empty-art">${icon('note')}</div><h2>${posts.length ? '이 카테고리에는 글이 없어요' : '아직 글이 없어요'}</h2><p>${posts.length ? '' : '첫 글을 써 보세요.'}</p><a class="btn btn-blue" href="#menu3?write=1">${icon('plus')} 글쓰기</a></div>`}
     </section>`;
 
+  setSubTabs($('.cat-tabs', root));   // 카테고리 탭을 FM식 서브탭 줄로 옮김
+
   // 관리 창을 열어 둔 채로 다시 그릴 수 있게 기억
   const redraw = async () => { const open = $('#catManage').open; await boardList(root, menu, filter); if (open && $('#catManage')) $('#catManage').open = true; };
   root.onclick = async (e) => {
@@ -1728,6 +1767,9 @@ function drawNav() {
     </a>`;
   nav.innerHTML = MENUS.filter((m) => !m.foot).map(item).join('');
   $('#footNav').innerHTML = MENUS.filter((m) => m.foot).map(item).join('');
+  // 상단 주 메뉴 바 (설정 메뉴까지 전부)
+  $('#topNav').innerHTML = MENUS.map((m) => `
+    <a class="topnav-item" href="#${m.id}" data-id="${m.id}" ${m === current ? 'aria-current="page"' : ''}>${icon(m.icon)}<span>${esc(m.label)}</span></a>`).join('');
 }
 // 설정에서 바꾼 메뉴 이름을 적용
 function applyMenuNames() {
@@ -1745,16 +1787,32 @@ function show() {
   const { menu, params } = route();
   cleanups.forEach((fn) => fn());
   cleanups = [];
-  document.querySelectorAll('#sidebar .nav-item').forEach((a) => {
+  document.querySelectorAll('#sidebar .nav-item, #topNav .topnav-item').forEach((a) => {
     if (a.dataset.id === menu.id) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
   main.classList.toggle('wide', Boolean(menu.wide));
+  ctxTitle.textContent = menu.label;
+  setSubTabs(null);
   main.innerHTML = `<div class="view">${(menu.render || renderEmpty)(menu)}</div>`;
   document.title = `${menu.label} · My Site`;
   setDrawer(false);
   if (menu.mount) menu.mount(menu, params);
 }
+
+// FM 상단 컨텍스트: 뒤로/앞으로, 서브탭 줄, 하단 상태 줄
+const ctxTitle = $('#ctxTitle');
+const subSlot = $('#subSlot');
+// el 을 보조 메뉴 바로 옮김(null 이면 비움). 링크는 그대로 동작합니다.
+function setSubTabs(el) {
+  subSlot.replaceChildren(...(el ? [el] : []));
+}
+$('#backBtn').addEventListener('click', () => history.back());
+$('#fwdBtn').addEventListener('click', () => history.forward());
+const sbClock = $('#sbClock');
+const tickStatus = () => { sbClock.textContent = new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
+tickStatus();
+setInterval(tickStatus, 30000);
 
 // 좁은 화면: 메뉴바를 서랍처럼 열고 닫기
 function setDrawer(open) {
@@ -1769,11 +1827,14 @@ scrim.addEventListener('click', () => setDrawer(false));
 function setCollapsed(on) {
   app.classList.toggle('collapsed', on);
   collapseBtn.setAttribute('aria-pressed', String(on));
-  collapseBtn.querySelector('.nav-text').textContent = on ? '메뉴 펼치기' : '메뉴 접기';
-  try { localStorage.setItem('sidebar-collapsed', on ? '1' : ''); } catch (e) { /* 저장 불가 환경은 무시 */ }
+  collapseBtn.querySelector('.nav-text').textContent = on ? '이름 표시' : '이름 숨기기';
+  try { localStorage.setItem('sidebar-collapsed', on ? '1' : '0'); } catch (e) { /* 저장 불가 환경은 무시 */ }
 }
 collapseBtn.addEventListener('click', () => setCollapsed(!app.classList.contains('collapsed')));
-try { if (localStorage.getItem('sidebar-collapsed')) setCollapsed(true); } catch (e) { /* 무시 */ }
+// FM27 북마크 바처럼 기본은 아이콘만, 이름 표시는 사용자가 켜면 기억
+let startCollapsed = true;
+try { if (localStorage.getItem('sidebar-collapsed') === '0') startCollapsed = false; } catch (e) { /* 무시 */ }
+setCollapsed(startCollapsed);
 
 /* ------------------------------------------------------------------
    주간 / 야간 모드
