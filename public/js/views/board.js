@@ -1,6 +1,5 @@
 // Menu 3: 게시판
 import { api, jsonBody } from '../core/api.js';
-import { setSubTabs } from '../core/chrome.js';
 import { confirmDelete } from '../core/dialogs.js';
 import { $, esc, toast } from '../core/dom.js';
 import { fmtBytes, fmtDateTime } from '../core/format.js';
@@ -84,8 +83,6 @@ async function boardList(root, menu, filter) {
         </li>`).join('')}</ul>`
       : `<div class="empty"><div class="empty-art">${icon('note')}</div><h2>${posts.length ? '이 카테고리에는 글이 없어요' : '아직 글이 없어요'}</h2><p>${posts.length ? '' : '첫 글을 써 보세요.'}</p><a class="btn btn-blue" href="#menu3?write=1">${icon('plus')} 글쓰기</a></div>`}
     </section>`;
-
-  setSubTabs($('.cat-tabs', root));   // 카테고리 탭을 FM식 서브탭 줄로 옮김
 
   // 관리 창을 열어 둔 채로 다시 그릴 수 있게 기억
   const redraw = async () => { const open = $('#catManage').open; await boardList(root, menu, filter); if (open && $('#catManage')) $('#catManage').open = true; };
