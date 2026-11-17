@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="css/sky.css">
 </head>
 <body>
-  <div class="sky" id="sky" aria-hidden="true"><div class="sky-stars"></div><div class="sky-grass"></div></div>
+  <div class="sky" id="sky" aria-hidden="true"><div class="sky-stars"></div><div class="sky-grass"></div><div class="sat" hidden></div></div>
   <a class="skip" href="#main">본문으로 건너뛰기</a>
 
   <div class="app" id="app">
@@ -105,7 +105,7 @@
         <div class="sub-slot" id="subSlot"></div>
       </nav>
 
-      <div class="sky-band" aria-hidden="true"><span class="sun"></span><span class="moon"></span></div>
+      <div class="sky-band" aria-hidden="true"><span class="sun"></span><span class="moon"><svg viewBox="-22 -22 44 44" aria-hidden="true"><defs><radialGradient id="moonG" cx=".38" cy=".36" r=".85"><stop offset="0" stop-color="#fff6b8"/><stop offset=".55" stop-color="#f2d35b"/><stop offset="1" stop-color="#cf9f2c"/></radialGradient><clipPath id="moonClip"><path id="moonClipPath" d=""/></clipPath></defs><g id="moonShape"><circle r="20" fill="#2a2f4d" opacity=".85"/><path id="moonLit" d="" fill="url(#moonG)"/><g clip-path="url(#moonClip)" fill="#a9801f" opacity=".4"><circle cx="-6" cy="-7" r="4.6"/><circle cx="7" cy="-2" r="3.4"/><circle cx="1.5" cy="9" r="5"/><circle cx="-11" cy="4" r="3"/><circle cx="10" cy="10" r="2.2"/><circle cx="-2" cy="-14" r="2.2"/><circle cx="13" cy="-9" r="1.6"/></g></g></svg></span></div>
 
       <main class="main" id="main" tabindex="-1"><!-- 현재 메뉴 화면이 여기에 그려집니다 --></main>
 

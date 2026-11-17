@@ -23,6 +23,18 @@ function seoulDay(now, offset = 0) {
   return sunTimes(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
 }
 
+// 월령 0~1 (0 신월, 0.5 보름). 기준 신월 2000-01-06 18:14 UTC, 삭망월 29.53일
+const SYNODIC = 29.530588853, NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
+function moonAge(now) {
+  const a = ((now - NEW_MOON) / DAY / SYNODIC) % 1;
+  return a < 0 ? a + 1 : a;
+}
+// 달의 밝은 부분 모양(SVG path, 반지름 20). 차오르는 달은 오른쪽, 기우는 달은 왼쪽이 밝음
+function moonPath(age) {
+  const c = Math.cos(2 * Math.PI * age), rx = (20 * Math.abs(c)).toFixed(2);
+  return `M0,-20 A20,20 0 0 1 0,20 A${rx},20 0 0 ${c > 0 ? 0 : 1} 0,-20 Z`;
+}
+
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
@@ -48,7 +60,7 @@ function skyState(now) {
   return { isDay, t: clamp01(t), dayF, glow, grass };
 }
 
-function render(now = Date.now()) {
+function render(now = Date.now(), age = moonAge(now)) {
   const s = skyState(now);
   const top = mix(NIGHT[0], DAYC[0], s.dayF);
   const bottom = mix(mix(NIGHT[1], DAYC[1], s.dayF), GLOW, s.glow * 0.7);
@@ -61,6 +73,38 @@ function render(now = Date.now()) {
   st.setProperty('--sun-x', s.isDay ? x : '50'); st.setProperty('--sun-h', s.isDay ? h : '0'); st.setProperty('--sun-o', s.isDay ? '1' : '0');
   st.setProperty('--moon-x', s.isDay ? '50' : x); st.setProperty('--moon-h', s.isDay ? '0' : h); st.setProperty('--moon-o', s.isDay ? '0' : '1');
   document.documentElement.dataset.sky = s.isDay ? 'day' : 'night';
+  // 달 위상
+  const d = moonPath(age);
+  for (const id of ['moonLit', 'moonClipPath']) document.getElementById(id)?.setAttribute('d', d);
+  document.getElementById('moonShape')?.setAttribute('transform', age < 0.5 ? '' : 'scale(-1 1)');
+  st.setProperty('--moon-illum', ((1 - Math.cos(2 * Math.PI * age)) / 2).toFixed(2));
+  if (s.isDay) cancelSatellite();
+}
+
+// 인공위성: 밤에 2~6분마다 한 번 약 40초 동안 하늘을 가로지름
+let satTimer = null, satAnim = null;
+const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cancelSatellite() {
+  if (satAnim) { satAnim.cancel(); satAnim = null; }
+  const el = document.querySelector('#sky .sat');
+  if (el) el.hidden = true;
+}
+function flySatellite() {
+  const el = document.querySelector('#sky .sat');
+  if (!el || !el.animate || satAnim || reduced()) return;
+  const ltr = Math.random() < 0.5, w = window.innerWidth;
+  el.style.top = (8 + Math.random() * 37).toFixed(0) + '%';
+  el.classList.toggle('rtl', !ltr);
+  el.hidden = false;
+  satAnim = el.animate([{ transform: `translateX(${ltr ? -20 : w + 20}px)` }, { transform: `translateX(${ltr ? w + 20 : -20}px)` }], { duration: 40000, easing: 'linear' });
+  satAnim.onfinish = () => { el.hidden = true; satAnim = null; };
+}
+function scheduleSatellite() {
+  clearTimeout(satTimer);
+  satTimer = setTimeout(() => {
+    if (!document.hidden && document.documentElement.dataset.sky === 'night') flySatellite();
+    scheduleSatellite();
+  }, (120 + Math.random() * 240) * 1000);
 }
 
 // ?sky=HH:MM (서울 시각) 이면 그 시각으로 고정해 미리 볼 수 있음
@@ -72,11 +116,16 @@ function fixedNow() {
 }
 
 function startSky() {
+  const q = new URLSearchParams(location.search);
+  const moon = parseFloat(q.get('moon'));   // ?moon=0~1 : 월령 고정 미리보기
+  const age = (now) => (Number.isFinite(moon) ? ((moon % 1) + 1) % 1 : moonAge(now));
   const fixed = fixedNow();
-  if (fixed !== null) { render(fixed); return; }
-  render();
-  setInterval(() => { if (!document.hidden) render(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+  if (q.get('sat') === '1') setTimeout(flySatellite, 500);   // 미리보기: 바로 1회
+  if (fixed !== null) { render(fixed, age(fixed)); return; }
+  render(Date.now(), age(Date.now()));
+  setInterval(() => { if (!document.hidden) render(Date.now(), age(Date.now())); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelSatellite(); else render(Date.now(), age(Date.now())); });
+  scheduleSatellite();
 }
 
-export { sunTimes, skyState, render, startSky };
+export { sunTimes, skyState, moonAge, moonPath, render, startSky };
