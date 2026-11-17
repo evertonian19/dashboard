@@ -14,7 +14,6 @@ Environment:
 """
 import getpass
 import glob
-import imaplib
 import json
 import mimetypes
 import os
@@ -25,264 +24,22 @@ import subprocess
 import sys
 import threading
 import time
-import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
-from email import message_from_bytes
-from email.header import decode_header, make_header
-from email.utils import parseaddr, parsedate_to_datetime
-from html.parser import HTMLParser
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, quote, urlencode, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, PUBLIC_PATHS, SESSION_TTL, _login_failures, _login_lock, _token_hash, check_login, set_login
 from backend.bootstrap import init
 from backend.config import CLAUDE_DIR, DATA, FILES, HOST, INLINE_TYPES, KINDS, LISTED_KINDS, MAX_UPLOAD, PORT, PUBLIC, STARTED, TRASH_DAYS
 from backend.db import db, get_setting, now_iso, one_line, record, set_setting
 from backend.filenames import clean_name
+from backend.mail import MAIL_PROVIDERS, _mail_lock, _mail_state, check_account, fetch_mail, fetch_mail_body, load_accounts, mail_error, mail_overview, mail_poller, save_accounts
 from backend.pdf import PDF_SOURCES, SOFFICE, convert_to_pdf
 from backend.sanitize import MAX_BODY, MAX_CATEGORY, MAX_COMMENT, MAX_JSON, MAX_TITLE, sanitize_post
 from backend.trash import purge_file, purge_post, purge_trash
-
-
-# ---------------------------------------------------------------------------
-# Mail (Menu 6)
-#
-# Read-only IMAP check of the inbox: unread count and the newest headers.
-# Nothing is marked read, moved or deleted (mailbox opened read-only, PEEK).
-# Account passwords are stored in MAIL_FILE (owner-only) and never sent back
-# to the browser.
-MAIL_FILE = os.path.join(DATA, "mail-accounts.json")
-MAIL_PROVIDERS = {
-    "naver": {"label": "네이버", "host": "imap.naver.com", "web": "https://mail.naver.com"},
-    "gmail": {"label": "Gmail", "host": "imap.gmail.com", "web": "https://mail.google.com"},
-}
-MAIL_POLL = 60          # seconds between background checks
-MAIL_RECENT = 20        # newest messages shown per account
-_mail_lock = threading.Lock()
-_mail_state = {}        # account id -> last check result
-
-
-def load_accounts():
-    try:
-        with open(MAIL_FILE) as fh:
-            data = json.load(fh)
-        return data if isinstance(data, list) else []
-    except (OSError, ValueError):
-        return []
-
-
-def save_accounts(accounts):
-    tmp = MAIL_FILE + ".tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        json.dump(accounts, fh, ensure_ascii=False)
-    os.replace(tmp, MAIL_FILE)
-
-
-def _header(value):
-    try:
-        return str(make_header(decode_header(value or ""))).strip()
-    except Exception:
-        return (value or "").strip()
-
-
-def fetch_mail(account):
-    """Log in and return {"unread": n, "messages": [...]}. Raises on failure."""
-    conn = imaplib.IMAP4_SSL(MAIL_PROVIDERS[account["provider"]]["host"], 993, timeout=20)
-    try:
-        conn.login(account["email"], account["password"])
-        typ, data = conn.select("INBOX", readonly=True)
-        if typ != "OK":
-            raise imaplib.IMAP4.error("받은편지함을 열 수 없어요")
-        total = int(data[0] or 0)
-        typ, data = conn.search(None, "UNSEEN")
-        unread = len(data[0].split()) if typ == "OK" and data and data[0] else 0
-        messages = []
-        if total:
-            first = max(1, total - MAIL_RECENT + 1)
-            typ, data = conn.fetch(f"{first}:{total}",
-                                   "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
-            for i, item in enumerate(data or []):
-                if not isinstance(item, tuple):
-                    continue
-                meta = item[0]
-                if i + 1 < len(data) and isinstance(data[i + 1], bytes):
-                    meta += data[i + 1]   # some servers put FLAGS after the header block
-                msg = message_from_bytes(item[1])
-                name, addr = parseaddr(_header(msg.get("From")))
-                try:
-                    date = parsedate_to_datetime(msg.get("Date")).astimezone().isoformat(timespec="seconds")
-                except Exception:
-                    date = None
-                uid = re.search(rb"UID (\d+)", meta)
-                messages.append({
-                    "uid": int(uid.group(1)) if uid else None,
-                    "from": name or addr or "(보낸 사람 없음)", "from_addr": addr,
-                    "subject": _header(msg.get("Subject")) or "(제목 없음)",
-                    "date": date, "unread": b"\\Seen" not in meta,
-                })
-            messages.reverse()
-        return {"unread": unread, "messages": messages}
-    finally:
-        try:
-            conn.logout()
-        except Exception:
-            pass
-
-
-class _TextOnly(HTMLParser):
-    """HTML mail body -> plain text."""
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.parts, self.skip = [], 0
-
-    def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style", "head"):
-            self.skip += 1
-        elif tag in ("br", "p", "div", "tr", "li", "h1", "h2", "h3"):
-            self.parts.append("\n")
-
-    def handle_endtag(self, tag):
-        if tag in ("script", "style", "head"):
-            self.skip = max(0, self.skip - 1)
-
-    def handle_data(self, data):
-        if not self.skip:
-            self.parts.append(data)
-
-
-def fetch_mail_body(account, uid):
-    """Plain-text body of one message. Uses PEEK, so the message stays unread."""
-    conn = imaplib.IMAP4_SSL(MAIL_PROVIDERS[account["provider"]]["host"], 993, timeout=20)
-    try:
-        conn.login(account["email"], account["password"])
-        conn.select("INBOX", readonly=True)
-        typ, data = conn.uid("fetch", str(int(uid)), "(BODY.PEEK[]<0.400000>)")
-        raw = next((item[1] for item in data or [] if isinstance(item, tuple)), None)
-        if typ != "OK" or raw is None:
-            raise LookupError("메일을 찾을 수 없어요")
-    finally:
-        try:
-            conn.logout()
-        except Exception:
-            pass
-    msg = message_from_bytes(raw)
-    plain = rich = None
-    for part in msg.walk():
-        if part.is_multipart() or "attachment" in str(part.get("Content-Disposition", "")).lower():
-            continue
-        kind = part.get_content_type()
-        if kind not in ("text/plain", "text/html") or (kind == "text/plain" and plain) or (kind == "text/html" and rich):
-            continue
-        payload = part.get_payload(decode=True) or b""
-        charset = part.get_content_charset() or "utf-8"
-        try:
-            text = payload.decode(charset, "replace")
-        except LookupError:
-            text = payload.decode("utf-8", "replace")
-        if kind == "text/plain":
-            plain = text
-        else:
-            rich = text
-    if not (plain and plain.strip()) and rich:
-        parser = _TextOnly()
-        parser.feed(rich)
-        plain = "".join(parser.parts)
-    text = re.sub(r"[ \t\xa0\u200b\u200c\ufeff]+", " ", plain or "")
-    text = re.sub(r" ?\n ?", "\n", text.replace("\r", ""))
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-    return text[:20000]
-
-
-def mail_error(exc):
-    if isinstance(exc, imaplib.IMAP4.error):
-        detail = exc.args[0] if exc.args else ""
-        if isinstance(detail, bytes):
-            detail = detail.decode("utf-8", "replace")
-        return f"로그인에 실패했어요. 주소와 앱 비밀번호, IMAP 사용 설정을 확인해 주세요. ({detail})"
-    return f"메일 서버에 연결할 수 없어요. ({exc})"
-
-
-def check_account(account):
-    try:
-        result = {**fetch_mail(account), "error": None}
-    except Exception as exc:
-        with _mail_lock:
-            old = _mail_state.get(account["id"], {})
-        result = {"unread": old.get("unread", 0), "messages": old.get("messages", []),
-                  "error": mail_error(exc)}
-    result["checked_at"] = now_iso()
-    with _mail_lock:
-        _mail_state[account["id"]] = result
-    return result
-
-
-def mail_poller():
-    while True:
-        for account in load_accounts():
-            check_account(account)
-        threading.Event().wait(MAIL_POLL)
-
-
-# ---------------------------------------------------------------------------
-# Weather (Open-Meteo, no API key). Only the city name / coordinates are sent.
-WEATHER_TTL = 600
-DEFAULT_CITY = {"name": "서울", "lat": 37.5665, "lon": 126.978}
-WEATHER_TEXT = {
-    0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 48: "안개",
-    51: "약한 이슬비", 53: "이슬비", 55: "강한 이슬비", 56: "어는 이슬비", 57: "어는 이슬비",
-    61: "약한 비", 63: "비", 65: "강한 비", 66: "어는 비", 67: "어는 비",
-    71: "약한 눈", 73: "눈", 75: "강한 눈", 77: "싸락눈", 80: "약한 소나기", 81: "소나기",
-    82: "강한 소나기", 85: "약한 눈 소나기", 86: "눈 소나기", 95: "뇌우", 96: "우박 뇌우", 99: "우박 뇌우",
-}
-_weather_cache = {}
-_weather_lock = threading.Lock()
-
-
-def http_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "dashboard"})
-    with urllib.request.urlopen(req, timeout=10) as res:
-        return json.load(res)
-
-
-def geocode(name):
-    data = http_json("https://geocoding-api.open-meteo.com/v1/search?"
-                     + urlencode({"name": name, "count": 1, "language": "ko"}))
-    hit = (data.get("results") or [None])[0]
-    if not hit:
-        return None
-    label = hit.get("name") or name
-    return {"name": label, "lat": round(hit["latitude"], 4), "lon": round(hit["longitude"], 4)}
-
-
-def weather(city):
-    key = (city["lat"], city["lon"])
-    with _weather_lock:
-        cached = _weather_cache.get(key)
-    if cached and time.time() - cached[0] < WEATHER_TTL:
-        return cached[1]
-    data = http_json("https://api.open-meteo.com/v1/forecast?" + urlencode({
-        "latitude": city["lat"], "longitude": city["lon"], "timezone": "auto", "forecast_days": 3,
-        "current": "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m",
-        "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-        "wind_speed_unit": "ms",
-    }))
-    cur, daily = data["current"], data["daily"]
-    result = {
-        "city": city["name"], "fetched_at": now_iso(),
-        "current": {"temp": cur["temperature_2m"], "feels": cur["apparent_temperature"],
-                    "humidity": cur["relative_humidity_2m"], "wind": cur["wind_speed_10m"],
-                    "text": WEATHER_TEXT.get(cur["weather_code"], "")},
-        "days": [{"date": d, "max": daily["temperature_2m_max"][i], "min": daily["temperature_2m_min"][i],
-                  "rain": daily["precipitation_probability_max"][i],
-                  "text": WEATHER_TEXT.get(daily["weather_code"][i], "")}
-                 for i, d in enumerate(daily["time"])],
-    }
-    with _weather_lock:
-        _weather_cache[key] = (time.time(), result)
-    return result
+from backend.weather import DEFAULT_CITY, geocode, weather
 
 
 # ---------------------------------------------------------------------------
@@ -406,20 +163,6 @@ def system_status():
     disk = shutil.disk_usage(DATA)
     out["disk_total"], out["disk_used"] = disk.total, disk.used
     return out
-
-
-def mail_overview():
-    accounts = []
-    with _mail_lock:
-        for a in load_accounts():
-            state = _mail_state.get(a["id"], {})
-            accounts.append({
-                "id": a["id"], "provider": a["provider"], "email": a["email"],
-                "checked_at": state.get("checked_at"), "error": state.get("error"),
-                "unread": state.get("unread", 0), "messages": state.get("messages", []),
-            })
-    providers = {k: {"label": v["label"], "web": v["web"]} for k, v in MAIL_PROVIDERS.items()}
-    return {"providers": providers, "accounts": accounts, "poll_seconds": MAIL_POLL}
 
 
 # ---------------------------------------------------------------------------
