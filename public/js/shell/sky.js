@@ -75,36 +75,46 @@ function render(now = Date.now(), age = moonAge(now)) {
   document.documentElement.dataset.sky = s.isDay ? 'day' : 'night';
   // 달 위상
   const d = moonPath(age);
-  for (const id of ['moonLit', 'moonClipPath']) document.getElementById(id)?.setAttribute('d', d);
-  document.getElementById('moonShape')?.setAttribute('transform', age < 0.5 ? '' : 'scale(-1 1)');
+  const lit = document.getElementById('moonLit');   // 밝은 부분만 뒤집어 질감(바다·크레이터)은 그대로 둠
+  if (lit) { lit.setAttribute('d', d); lit.setAttribute('transform', age < 0.5 ? '' : 'scale(-1 1)'); }
   st.setProperty('--moon-illum', ((1 - Math.cos(2 * Math.PI * age)) / 2).toFixed(2));
   if (s.isDay) cancelSatellite();
 }
 
-// 인공위성: 밤에 2~6분마다 한 번 약 40초 동안 하늘을 가로지름
+// 인공위성: 밤에 가끔 콘텐츠 위(투명 레이어)를 가로지름. 첫 비행은 8~20초 뒤, 이후 40~100초 간격
 let satTimer = null, satAnim = null;
 const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const satEl = () => document.querySelector('.sat-layer .sat');
 function cancelSatellite() {
   if (satAnim) { satAnim.cancel(); satAnim = null; }
-  const el = document.querySelector('#sky .sat');
+  const el = satEl();
   if (el) el.hidden = true;
 }
-function flySatellite() {
-  const el = document.querySelector('#sky .sat');
+function flySatellite(duration = 30000) {
+  const el = satEl();
   if (!el || !el.animate || satAnim || reduced()) return;
-  const ltr = Math.random() < 0.5, w = window.innerWidth;
-  el.style.top = (8 + Math.random() * 37).toFixed(0) + '%';
+  const ltr = Math.random() < 0.5, w = window.innerWidth, h = window.innerHeight;
+  const x0 = ltr ? -60 : w + 60, x1 = ltr ? w + 60 : -60, dy = (Math.random() < 0.5 ? -1 : 1) * (20 + Math.random() * 40);
+  const at = (f) => x0 + (x1 - x0) * f;
+  el.style.top = (110 + Math.random() * h * 0.3).toFixed(0) + 'px';   // 헤더 바로 아래 ~ 화면 위쪽 40%
   el.classList.toggle('rtl', !ltr);
   el.hidden = false;
-  satAnim = el.animate([{ transform: `translateX(${ltr ? -20 : w + 20}px)` }, { transform: `translateX(${ltr ? w + 20 : -20}px)` }], { duration: 40000, easing: 'linear' });
+  satAnim = el.animate([
+    { offset: 0, opacity: 0, transform: `translate(${x0}px, 0)` },
+    { offset: 0.1, opacity: 1, transform: `translate(${at(0.1)}px, ${(dy * 0.15).toFixed(0)}px)` },
+    { offset: 0.5, opacity: 1, transform: `translate(${at(0.5)}px, ${(dy * 0.6).toFixed(0)}px)` },
+    { offset: 0.88, opacity: 1, transform: `translate(${at(0.88)}px, ${(dy * 0.92).toFixed(0)}px)` },
+    { offset: 1, opacity: 0, transform: `translate(${x1}px, ${dy.toFixed(0)}px)` },
+  ], { duration, easing: 'linear' });
   satAnim.onfinish = () => { el.hidden = true; satAnim = null; };
 }
-function scheduleSatellite() {
+const satDelay = (first) => (first ? 8 + Math.random() * 12 : 40 + Math.random() * 60) * 1000;
+function scheduleSatellite(first = false) {
   clearTimeout(satTimer);
   satTimer = setTimeout(() => {
     if (!document.hidden && document.documentElement.dataset.sky === 'night') flySatellite();
     scheduleSatellite();
-  }, (120 + Math.random() * 240) * 1000);
+  }, satDelay(first));
 }
 
 // ?sky=HH:MM (서울 시각) 이면 그 시각으로 고정해 미리 볼 수 있음
@@ -120,12 +130,14 @@ function startSky() {
   const moon = parseFloat(q.get('moon'));   // ?moon=0~1 : 월령 고정 미리보기
   const age = (now) => (Number.isFinite(moon) ? ((moon % 1) + 1) % 1 : moonAge(now));
   const fixed = fixedNow();
-  if (q.get('sat') === '1') setTimeout(flySatellite, 500);   // 미리보기: 바로 1회
+  const sat = q.get('sat');   // 미리보기: 1 = 바로 1회, loop = 11초마다 반복(짧게)
+  if (sat === '1') setTimeout(flySatellite, 500);
+  if (sat === 'loop') { setTimeout(() => flySatellite(9000), 500); setInterval(() => flySatellite(9000), 11000); }
   if (fixed !== null) { render(fixed, age(fixed)); return; }
   render(Date.now(), age(Date.now()));
   setInterval(() => { if (!document.hidden) render(Date.now(), age(Date.now())); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) cancelSatellite(); else render(Date.now(), age(Date.now())); });
-  scheduleSatellite();
+  scheduleSatellite(true);
 }
 
-export { sunTimes, skyState, moonAge, moonPath, render, startSky };
+export { sunTimes, skyState, moonAge, moonPath, render, startSky, satDelay };
