@@ -44,7 +44,7 @@ public/                   브라우저에 내려가는 파일 (login.* 를 뺀 �
     core/                 api, dom, format, state, registry(메뉴 목록), hooks, uploads …
     views/                메뉴별 화면: home todos usage settings diagrams documents board mail empty
     shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션
-  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board
+  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand
 tests/smoke_api.py        API 회귀 스크립트
 ```
 

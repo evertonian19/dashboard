@@ -28,7 +28,7 @@ function show() {
   ctxTitle.textContent = menu.label;
   setSubTabs(null);
   main.innerHTML = `<div class="view">${(menu.render || renderEmpty)(menu)}</div>`;
-  document.title = `${menu.label} · My Site`;
+  document.title = `${menu.label} · Fldmg`;
   setDrawer(false);
   if (menu.mount) menu.mount(menu, params);
 }
