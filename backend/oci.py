@@ -42,7 +42,9 @@ def oci_status():
         out["last_at"] = out["last_at"] or stamp.replace(" ", "T")
         if text.startswith("SUCCESS"):
             out["success"] = True
-            out["last_result"] = out["last_result"] or text[:200]
+            ok = re.search(r"SUCCESS after (\d+) attempt\(s\): (\d+) nodes", text)
+            out["last_result"] = out["last_result"] or (
+                f"성공 · 노드 {ok.group(2)}개 생성 완료 ({ok.group(1)}번째 시도)" if ok else "성공")
         attempt = re.match(r"attempt (\d+): apply rc=(\d+), nodes active=(\d+)", text)
         if attempt:
             out["attempt"] = int(attempt.group(1))

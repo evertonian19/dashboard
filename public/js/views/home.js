@@ -414,7 +414,7 @@ async function loadOci() {
     const o = await api('/oci');
     if (!$('#oci')) return;
     if (!o.available) { fill('#oci', '<p class="empty-inline">이 서버에는 재시도 기록이 없어요.</p>'); return; }
-    fill('#ociChip', o.success ? '<span class="chip add">생성 완료</span>' : o.running ? '<span class="chip add">재시도 중</span>' : '<span class="chip del">멈춤</span>');
+    fill('#ociChip', o.success ? '<span class="chip add">성공</span>' : o.running ? '<span class="chip add">재시도 중</span>' : '<span class="chip del">멈춤</span>');
     const cost = o.cost.amount != null ? `${numFmt.format(o.cost.amount)} ${esc(o.cost.currency)}` : o.cost.error ? '확인 실패' : '확인 중…';
     fill('#oci', `
       <p class="card-value">${o.attempt != null ? `${numFmt.format(o.attempt)}번째 시도` : '—'}</p>
