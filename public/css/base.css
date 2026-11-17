@@ -1,0 +1,94 @@
+/* Football Manager 스타일 — 색을 바꾸려면 여기만 고치면 됩니다
+   (변수 이름은 예전 그대로라서 --blue 는 지금 FM 보라색입니다) */
+:root {
+  /* 밝은 스킨 */
+  --paper:        #E4E6EA;   /* 페이지 배경 */
+  --paper-deep:   #D7DAE0;   /* 눌린 면, 입력창 */
+  --surface:      #F4F5F7;   /* 패널 */
+  --line:         #C9CDD6;
+
+  --blue:         #7A1FC2;   /* 주 강조색 */
+  --blue-hover:   #5F139B;
+  --blue-soft:    #E9DDF6;
+  --blue-glow:    #9A4BD8;
+  --accent-text:  #6A18AA;
+
+  --ink:          #1A1D26;
+  --ink-2:        #4A5163;
+  --ink-3:        #7A8192;
+  --danger:       #C62F34;
+  --good:         #1E9E58;
+  --warn:         #D98A12;
+
+  --panel-head:   #2A2F3D;   /* 패널 제목 띠 */
+  --panel-head-ink: #E6E9F0;
+  --topbar:  #F4F5F7;
+  --pill-bg:  rgba(142, 43, 216, .22);
+  --pill-ink: #FFFFFF;
+  --zebra:    rgba(26, 29, 38, .035);
+
+  --shadow: none;
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, .35);
+
+  /* 모드와 무관하게 고정인 메뉴바 색 */
+  --navy-a: #0D0F14;
+  --navy-b: #0D0F14;
+  --navy-c: #0D0F14;
+
+  --radius-lg: 4px;
+  --radius:    3px;
+  --radius-sm: 2px;
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 72px;
+  --ease: ease-out;
+  color-scheme: light;
+}
+
+/* 어두운 스킨 (FM 기본 화면) */
+:root[data-theme="dark"] {
+  --paper:        #14171F;
+  --paper-deep:   #1A1F2B;
+  --surface:      #1E2330;
+  --line:         #2C3342;
+  --blue:         #8E2BD8;
+  --blue-hover:   #A445F0;
+  --blue-soft:    #2B2140;
+  --blue-glow:    #B06CF0;
+  --accent-text:  #C48CFF;
+  --ink:          #E6E9F0;
+  --ink-2:        #AEB5C4;
+  --ink-3:        #7C8496;
+  --danger:       #E5484D;
+  --good:         #3DD68C;
+  --warn:         #F5A524;
+  --panel-head:   #12151C;
+  --panel-head-ink: #E6E9F0;
+  --topbar:  #0F121A;
+  --pill-bg:  rgba(142, 43, 216, .28);
+  --pill-ink: #FFFFFF;
+  --zebra:    rgba(255, 255, 255, .025);
+  --shadow: none;
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 3px solid var(--blue-glow); outline-offset: 2px; border-radius: 10px; }
+[hidden] { display: none !important; }
+
+.skip { position: absolute; left: 16px; top: -60px; z-index: 100; padding: 10px 16px; border-radius: 12px; background: var(--blue); color: #fff; text-decoration: none; }
+.skip:focus { top: 16px; }

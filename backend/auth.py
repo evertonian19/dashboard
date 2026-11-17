@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import os
+import posixpath
 import secrets
 import threading
 
@@ -20,10 +21,19 @@ from backend.db import db
 # redirects to /login.html and every API call answers 401.
 AUTH_FILE = os.path.join(DATA, "auth.json")
 SESSION_TTL = 6 * 3600
-PUBLIC_PATHS = {"/login.html", "/css/style.css", "/js/login.js"}
+PUBLIC_PATHS = {"/login.html", "/js/login.js"}   # plus every stylesheet under /css/ (see is_public)
 LOGIN_MAX_FAILURES, LOGIN_LOCK_SECONDS = 5, 300
 _login_failures = []
 _login_lock = threading.Lock()
+
+
+def is_public(path):
+    """Files the login screen needs before anyone is signed in: the page, its script and the
+    stylesheets. A path with dot segments is never public, so "/css/../js/main.js" cannot
+    slip a private file past the session check."""
+    if posixpath.normpath(path) != path:
+        return False
+    return path in PUBLIC_PATHS or (path.startswith("/css/") and path.endswith(".css"))
 
 
 def _hash_password(password, salt):

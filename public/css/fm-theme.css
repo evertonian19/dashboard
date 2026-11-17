@@ -1,0 +1,140 @@
+/* ------------------------------------------------------------------
+   Football Manager 모양 — 위의 기본 규칙을 덮어씁니다
+------------------------------------------------------------------- */
+.view { animation: fm-fade .15s ease-out both; }
+@keyframes fm-fade { from { opacity: 0; } }
+.search-panel, .dialog[open], .toast, .login-card { animation: fm-fade .15s ease-out both; }
+
+/* 메뉴바: 검은 단색 + 선택 항목 왼쪽 강조 막대 */
+.sidebar { padding: 18px 0 12px; background: var(--navy-a); box-shadow: none; border-right: 1px solid #000; }
+.brand { padding: 2px 18px 22px; gap: 10px; }
+.brand-mark { width: 28px; height: 28px; border-radius: 3px; background: var(--blue); box-shadow: inset 0 -10px 0 rgba(0,0,0,.28); }
+.brand-name { font-size: 16px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; }
+.nav-label { padding: 0 18px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.4); }
+.nav { gap: 0; }
+.nav-item, .foot-btn { height: 42px; padding: 0 18px 0 14px; gap: 12px; border-radius: 0; border-left: 4px solid transparent; font-weight: 600; font-size: 14px; }
+.nav-item:hover, .foot-btn:hover { background: rgba(255,255,255,.06); }
+.nav-item[aria-current="page"] { background: var(--pill-bg); color: #fff; border-left-color: var(--blue-glow); box-shadow: none; }
+.nav-item svg, .foot-btn svg { width: 20px; height: 20px; }
+.sidebar-foot { padding-top: 8px; border-top: 1px solid rgba(255,255,255,.1); }
+.app.collapsed .nav-item, .app.collapsed .foot-btn { padding: 0 0 0 14px; }
+
+/* 상단바 */
+.topbar { padding: 10px 24px; background: var(--topbar); backdrop-filter: none; border-bottom: 1px solid var(--line); }
+.search { height: 36px; border-radius: 3px; background: var(--paper-deep); border: 1px solid var(--line); }
+.search:focus-within { background: var(--paper-deep); border-color: var(--blue-glow); box-shadow: none; }
+.search-panel { border-radius: 3px; }
+.search-item { border-radius: 2px; }
+.mini-icon { width: 34px; height: 34px; border-radius: 3px; }
+.icon-btn { width: 36px; height: 36px; border-radius: 3px; }
+.icon-btn:hover { background: var(--paper-deep); }
+.avatar { width: 34px; height: 34px; border-radius: 3px; background: var(--blue); font-size: 14px; }
+
+/* 본문 · 제목 */
+.main { max-width: 1280px; padding: 18px 24px 64px; }
+.page-head { margin: 4px 0 18px; padding-bottom: 12px; border-bottom: 2px solid var(--blue); }
+.eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.page-title { font-size: clamp(20px, 2.2vw, 26px); font-weight: 800; letter-spacing: -0.01em; }
+.page-desc { margin-top: 4px; font-size: 14px; }
+.clock-time { font-size: 26px; font-weight: 800; letter-spacing: 0; }
+.clock-date { margin-top: 0; }
+
+/* 버튼 */
+.btn { height: 36px; padding: 0 16px; border-radius: 3px; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.btn:active { transform: none; filter: brightness(.9); }
+.btn svg { width: 17px; height: 17px; }
+.btn-sm { height: 30px; padding: 0 12px; border-radius: 3px; font-size: 12px; }
+.btn-soft { background: var(--paper-deep); color: var(--ink); border: 1px solid var(--line); }
+.btn-soft:hover { background: var(--blue-soft); border-color: var(--blue-glow); }
+
+/* 패널(카드): 각진 모서리 + 어두운 제목 띠 */
+.card { padding: 16px 18px; border-radius: 3px; border: 1px solid var(--line); background: var(--surface); box-shadow: none; transition: border-color .15s; }
+a.card:hover { transform: none; box-shadow: none; border-color: var(--blue-glow); }
+.grid { gap: 12px; margin-top: 12px; }
+.card-icon { width: 38px; height: 38px; margin-bottom: 12px; border-radius: 3px; background: var(--blue); box-shadow: none; }
+.card-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.card-value { font-size: 24px; font-weight: 800; letter-spacing: 0; }
+.card-note { font-size: 13px; }
+.card-head { margin: -16px -18px 14px; padding: 9px 18px; background: var(--panel-head); color: var(--panel-head-ink); border-bottom: 2px solid var(--blue); border-radius: 2px 2px 0 0; }
+.card-title { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: inherit; }
+.card-head .muted { color: rgba(230,233,240,.6); }
+.card-head .btn-soft { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.18); }
+.card-head .btn-ghost { color: rgba(230,233,240,.65); }
+.card-title .muted { text-transform: none; letter-spacing: 0; }
+
+/* 히어로(Claude 사용량): 클럽 개요 같은 패널 */
+.hero { padding: 22px 24px; gap: 22px; border-radius: 3px; background: var(--panel-head); border: 1px solid var(--line); border-top: 4px solid var(--blue); box-shadow: none; color: #E6E9F0; }
+.hero::before, .hero::after { display: none; }
+.hero-kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(230,233,240,.6); }
+.hero-title { font-size: clamp(24px, 2.8vw, 34px); font-weight: 800; letter-spacing: 0; }
+.hero-stat { padding: 10px 12px; border-radius: 3px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); backdrop-filter: none; }
+.hero-stat dd { font-size: 19px; font-weight: 800; letter-spacing: 0; }
+.meter { height: 8px; border-radius: 1px; background: rgba(255,255,255,.12); }
+.meter i { border-radius: 0; background: var(--good); }
+
+/* 목록: 촘촘한 표 + 줄무늬 */
+.row { padding: 8px 10px; gap: 12px; border-radius: 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.rows > .row:nth-child(even), .rows > li:nth-child(even) > .row:first-child { background: var(--zebra); }
+.row:hover { background: color-mix(in srgb, var(--blue) 14%, transparent); }
+.row.flash { background: color-mix(in srgb, var(--blue) 26%, transparent); }
+.row-title { font-weight: 650; }
+.row-sub { font-size: 13px; }
+.chip { padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ext-badge { width: 34px; height: 34px; border-radius: 3px; font-size: 10px; }
+
+/* 탭: 밑줄형 */
+.tabs { gap: 0; border-bottom: 1px solid var(--line); padding: 0; }
+.tab { height: 38px; padding: 0 16px; border-radius: 0; background: none; border-bottom: 3px solid transparent; color: var(--ink-2); font-size: 13px; font-weight: 700; letter-spacing: .03em; line-height: 35px; }
+.tab:hover { color: var(--ink); background: var(--zebra); }
+.tab[aria-current="true"] { background: none; color: var(--accent-text); border-bottom-color: var(--blue-glow); }
+.diagram-bar { padding: 0 0 12px; }
+.diagram-card { padding: 12px; }
+.diagram { border-radius: 2px; }
+
+/* 입력 · 편집기 */
+.field { padding: 9px 12px; border-radius: 3px; border: 1px solid var(--line); background: var(--paper-deep); }
+.field:focus { background: var(--paper-deep); border-color: var(--blue-glow); box-shadow: none; }
+.title-field { font-size: 17px; }
+.editor { border-radius: 3px; }
+.editor:focus-within { box-shadow: none; border-color: var(--blue-glow); }
+.tool { min-width: 34px; height: 34px; border-radius: 3px; }
+.post-body { font-size: 15px; line-height: 1.7; }
+.post-body img, .post-body blockquote { border-radius: 2px; }
+.drop { border-radius: 3px; padding: 26px 18px; }
+.memo, .link-tile, .link-icon, .gauge-bar, .bar i, .cat-list li, .dialog, .mail-body, .mail-error, .login-error { border-radius: 3px; }
+.link-icon { background: var(--blue); }
+.memo { background: color-mix(in srgb, #F5A524 14%, var(--surface)); border-color: color-mix(in srgb, #F5A524 35%, var(--line)); }
+.memo textarea { border-radius: 3px 3px 0 0; }
+
+/* 게이지·막대: 각진 단색, 값에 따라 상태색 */
+.gauge-bar { height: 8px; border-radius: 1px; }
+.gauge-bar i { border-radius: 0; background: var(--good); }
+.gauge-bar i.hot { background: var(--danger); }
+.bars { gap: 6px; }
+.bar i { border-radius: 1px; background: color-mix(in srgb, var(--blue) 45%, var(--paper-deep)); }
+.bar.today i { background: var(--blue-glow); }
+.weather-now b { font-size: 38px; letter-spacing: 0; }
+.kv dd, .card-value, .hero-title { font-variant-numeric: tabular-nums; }
+
+/* 배지 · 메일 상태 */
+.nav-badge { border-radius: 2px; background: var(--danger); }
+.mail-row.unread .dot { background: var(--blue-glow); box-shadow: none; border-radius: 1px; }
+.pin-mark, .pin-btn.on { color: var(--warn); }
+
+/* 대화상자 · 알림 · 로그인 */
+.dialog { padding: 22px; border: 1px solid var(--line); background: var(--surface); }
+.dialog::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: none; }
+.dialog h2 { font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.dialog.preview { padding: 0; }
+.preview-head { background: var(--panel-head); color: var(--panel-head-ink); border-bottom: 2px solid var(--blue); }
+.preview-head .icon-btn { color: inherit; }
+.toast { border-radius: 3px; border-left: 4px solid var(--blue-glow); }
+.login-card { border-radius: 3px; border: 1px solid var(--line); border-top: 4px solid var(--blue); box-shadow: var(--shadow-pop); }
+.login-card h1 { font-size: 24px; font-weight: 800; letter-spacing: 0; }
+.login-brand .brand-mark { background: var(--blue); }
+.login-card .btn { height: 42px; }
+.skip, .empty-art { border-radius: 3px; }
+.empty-art { background: var(--blue-soft); }
+.empty h2 { font-size: 18px; }
+.scrim { background: rgba(0, 0, 0, .55); backdrop-filter: none; }

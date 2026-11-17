@@ -16,7 +16,7 @@ from backend.api.settings import SettingsMixin
 from backend.api.summary import SummaryMixin
 from backend.api.todos import TodosMixin
 from backend.api.weather import WeatherMixin
-from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, PUBLIC_PATHS, SESSION_TTL, _login_failures, _login_lock, _token_hash, check_login
+from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, SESSION_TTL, _login_failures, _login_lock, _token_hash, check_login, is_public
 from backend.config import PUBLIC
 from backend.db import db, now_iso, one_line
 from backend.mail import mail_overview
@@ -80,7 +80,7 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
             if not expires:
                 if path.startswith("/api/"):
                     return self.fail(401, "로그인이 필요해요")
-                if path not in PUBLIC_PATHS:
+                if not is_public(path):
                     return self.redirect("/login.html")
             elif path == "/login.html":
                 return self.redirect("/")
