@@ -26,7 +26,6 @@ import secrets
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import urllib.request
@@ -40,85 +39,12 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from backend.config import CLAUDE_DIR, DATA, FILES, HOST, INLINE_TYPES, KINDS, LISTED_KINDS, MAX_UPLOAD, PORT, PUBLIC, ROOT, STARTED, TRASH_DAYS
-from backend.db import db, get_setting, init_schema, now_iso, one_line, record, set_setting
-
-
-def init():
-    """Create the data directory and tables, then empty trash older than TRASH_DAYS."""
-    init_schema()
-    purge_trash(TRASH_DAYS)
-# PDF conversion uses LibreOffice in headless mode, if it is installed.
-SOFFICE = (os.environ.get("SOFFICE") or shutil.which("soffice") or shutil.which("libreoffice")
-           or next(iter(sorted(glob.glob(os.path.expanduser("~/opt/libreoffice/opt/*/program/soffice")))), None))
-PDF_SOURCES = [".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".rtf", ".odt", ".odp", ".ods",
-               ".txt", ".md", ".csv"]
-PDF_TIMEOUT = 180
-_pdf_lock = threading.Lock()
-
-
-# ---------------------------------------------------------------------------
-# Trash: deleting a file or post only marks it (deleted_at). It can be
-# restored for TRASH_DAYS, after which it is removed for good.
-def purge_file(conn, row):
-    conn.execute("DELETE FROM files WHERE id = ?", (row["id"],))
-    try:
-        os.remove(os.path.join(FILES, row["id"] + row["ext"]))
-    except FileNotFoundError:
-        pass
-
-
-def purge_post(conn, post_id):
-    conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
-    conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-
-
-def purge_trash(older_than_days=None):
-    """Permanently remove trashed items; all of them, or only those older than N days."""
-    cutoff = None
-    if older_than_days is not None:
-        cutoff = (datetime.now().astimezone() - timedelta(days=older_than_days)).isoformat(timespec="seconds")
-    where, args = ("deleted_at IS NOT NULL", ()) if cutoff is None else ("deleted_at < ?", (cutoff,))
-    with db() as conn:
-        for row in conn.execute(f"SELECT id, ext FROM files WHERE {where}", args).fetchall():
-            purge_file(conn, row)
-        for row in conn.execute(f"SELECT id FROM posts WHERE {where}", args).fetchall():
-            purge_post(conn, row["id"])
-
-
-def convert_to_pdf(source, ext, target):
-    """Convert one document to PDF with LibreOffice. Raises RuntimeError with a
-    message for the user when it cannot be done."""
-    if not SOFFICE:
-        raise RuntimeError("PDF 변환 프로그램(LibreOffice)이 서버에 설치되어 있지 않아요")
-    env = dict(os.environ)
-    libs = os.path.expanduser("~/opt/lo-libs/usr/lib/x86_64-linux-gnu")   # extra libraries for a home-directory install
-    if os.path.isdir(libs):
-        env["LD_LIBRARY_PATH"] = libs + os.pathsep + env.get("LD_LIBRARY_PATH", "")
-    fonts = os.path.join(ROOT, "fonts.conf")
-    if os.path.isfile(fonts):
-        env["FONTCONFIG_FILE"] = fonts
-    with _pdf_lock, tempfile.TemporaryDirectory(dir=DATA) as tmp:   # one conversion at a time
-        work = os.path.join(tmp, "source" + ext)
-        shutil.copyfile(source, work)
-        try:
-            subprocess.run(
-                [SOFFICE, "--headless", "--norestore",
-                 "-env:UserInstallation=file://" + quote(os.path.join(DATA, "lo-profile")),
-                 "--convert-to", "pdf", "--outdir", tmp, work],
-                capture_output=True, timeout=PDF_TIMEOUT, env=env, cwd=tmp)
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("변환이 너무 오래 걸려서 중단했어요") from None
-        made = os.path.join(tmp, "source.pdf")
-        if not os.path.isfile(made) or not os.path.getsize(made):
-            raise RuntimeError("이 파일은 PDF로 변환하지 못했어요")
-        os.replace(made, target)
-
-
-def clean_name(raw):
-    """Keep only the file name, drop control characters, cap the length."""
-    name = re.sub(r"[\x00-\x1f\x7f]", "", raw.replace("\\", "/").split("/")[-1]).strip()
-    return name[:200]
+from backend.bootstrap import init
+from backend.config import CLAUDE_DIR, DATA, FILES, HOST, INLINE_TYPES, KINDS, LISTED_KINDS, MAX_UPLOAD, PORT, PUBLIC, STARTED, TRASH_DAYS
+from backend.db import db, get_setting, now_iso, one_line, record, set_setting
+from backend.filenames import clean_name
+from backend.pdf import PDF_SOURCES, SOFFICE, convert_to_pdf
+from backend.trash import purge_file, purge_post, purge_trash
 
 
 # ---------------------------------------------------------------------------
