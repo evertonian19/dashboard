@@ -1,0 +1,36 @@
+/* 하늘 배경: 서울 일출·일몰에 따라 shell/sky.js 가 변수를 갱신합니다. 맨 마지막에 로드 */
+:root { --sky-top: rgb(62, 150, 240); --sky-bottom: rgb(182, 225, 255); --stars: 0; --grass: 0;
+  --sun-x: 50; --sun-h: 0; --sun-o: 0; --moon-x: 50; --moon-h: 0; --moon-o: 0; --band-h: 110px; }
+body { background: var(--paper); }
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom)); }
+.sky-stars { position: absolute; inset: 0 0 40% 0; opacity: var(--stars);
+  background:
+    radial-gradient(1.5px 1.5px at 8% 14%, #fff, transparent), radial-gradient(1px 1px at 17% 40%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 29% 22%, #fff, transparent), radial-gradient(1px 1px at 38% 8%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 47% 34%, #fff, transparent), radial-gradient(1px 1px at 58% 16%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 66% 44%, #fff, transparent), radial-gradient(1px 1px at 74% 10%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 83% 28%, #fff, transparent), radial-gradient(1px 1px at 92% 18%, #fff, transparent),
+    radial-gradient(1px 1px at 12% 62%, #fff, transparent), radial-gradient(1px 1px at 52% 58%, #fff, transparent), radial-gradient(1px 1px at 88% 54%, #fff, transparent);
+  animation: twinkle 5s ease-in-out infinite alternate; }
+@keyframes twinkle { from { filter: brightness(.7); } to { filter: brightness(1.2); } }
+.sky-grass { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--grass) * 90px); opacity: var(--grass); transition: height 1s linear, opacity 1s linear;
+  background:
+    repeating-linear-gradient(100deg, rgba(20, 90, 30, .55) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(80deg, rgba(120, 200, 80, .5) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #5fb84a, #2f7d32);
+  -webkit-mask: linear-gradient(180deg, transparent, #000 30%); mask: linear-gradient(180deg, transparent, #000 30%); }
+
+/* 상단 빈 띠: 해/달이 호를 그리며 지나가는 자리. 띠의 아래쪽 선이 지평선 */
+.sky-band { grid-column: 2; grid-row: 3; position: relative; height: var(--band-h); pointer-events: none; }
+.sun, .moon { position: absolute; width: 44px; height: 44px; border-radius: 50%; transition: left 1s linear, bottom 1s linear, opacity 1s linear; }
+.sun { left: calc(var(--sun-x) * 1%); bottom: calc(var(--sun-h) * (var(--band-h) - 54px)); opacity: var(--sun-o); transform: translateX(-50%);
+  background: radial-gradient(circle at 40% 40%, #fff7c2, #ffd23f 60%, #ffb300); box-shadow: 0 0 28px 10px rgba(255, 200, 60, .55); }
+.moon { left: calc(var(--moon-x) * 1%); bottom: calc(var(--moon-h) * (var(--band-h) - 54px)); opacity: var(--moon-o); transform: translateX(-50%);
+  background: radial-gradient(circle at 62% 38%, transparent 0 46%, rgba(0,0,0,0) 47%), radial-gradient(circle at 38% 38%, #fffbe8, #dfe4f2 70%);
+  box-shadow: 0 0 22px 6px rgba(200, 215, 255, .35), inset -9px -3px 0 0 rgba(120, 130, 170, .25); }
+
+.app { position: relative; z-index: 1; }
+.main-wrap, .main { background: transparent; }
+
+@media (max-width: 760px) { :root { --band-h: 70px; } .sky-band { grid-column: 1; } .sun, .moon { width: 34px; height: 34px; } }
+@media (prefers-reduced-motion: reduce) { .sky-stars { animation: none; } .sun, .moon, .sky-grass { transition: none; } }

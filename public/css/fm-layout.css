@@ -54,12 +54,12 @@ body { background: radial-gradient(900px 380px at 12% -60px, color-mix(in srgb, 
 
 /* 전체를 한 격자로: 상단 바는 전체 폭, 북마크 바는 그 아래 왼쪽 */
 .main-wrap { display: contents; }
-.app { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.app { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
 .topbar    { grid-column: 1 / -1; grid-row: 1; }
-.sidebar   { grid-column: 1; grid-row: 2 / 5; align-self: start; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); padding: 8px 0 8px; border-right: 1px solid var(--line); }
+.sidebar   { grid-column: 1; grid-row: 2 / 6; align-self: start; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); padding: 8px 0 8px; border-right: 1px solid var(--line); }
 .subtabs   { grid-column: 2; grid-row: 2; }
-.main      { grid-column: 2; grid-row: 3; max-width: none; margin: 0; padding: 14px 20px 40px; }
-.statusbar { grid-column: 2; grid-row: 4; }
+.main      { grid-column: 2; grid-row: 4; max-width: none; margin: 0; padding: 14px 20px 40px; }
+.statusbar { grid-column: 2; grid-row: 5; }
 
 /* 북마크 바(좌측) */
 .sidebar .brand, .sidebar .nav-label { display: none; }
@@ -115,7 +115,7 @@ body { background: radial-gradient(900px 380px at 12% -60px, color-mix(in srgb, 
   .topbar .search-wrap { flex: 1 1 auto; }
   .sidebar { top: 0; height: 100vh; grid-row: auto; padding: 16px 0 8px; }
   .sidebar .brand { display: flex; }
-  .subtabs, .main, .statusbar { grid-column: 1; }
+  .subtabs, .main, .statusbar, .sky-band { grid-column: 1; }
   .subtabs { padding: 0 12px; }
   .crumb { padding-right: 12px; }
   .main { padding: 10px 14px 56px; }

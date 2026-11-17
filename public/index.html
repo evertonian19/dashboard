@@ -27,8 +27,10 @@
   <link rel="stylesheet" href="css/favorites.css">
   <link rel="stylesheet" href="css/board.css">
   <link rel="stylesheet" href="css/brand.css">
+  <link rel="stylesheet" href="css/sky.css">
 </head>
 <body>
+  <div class="sky" id="sky" aria-hidden="true"><div class="sky-stars"></div><div class="sky-grass"></div></div>
   <a class="skip" href="#main">본문으로 건너뛰기</a>
 
   <div class="app" id="app">
@@ -102,6 +104,8 @@
         <div class="crumb" aria-live="polite"><span class="crumb-site">Fldmg</span><i aria-hidden="true">›</i><b id="ctxTitle"></b></div>
         <div class="sub-slot" id="subSlot"></div>
       </nav>
+
+      <div class="sky-band" aria-hidden="true"><span class="sun"></span><span class="moon"></span></div>
 
       <main class="main" id="main" tabindex="-1"><!-- 현재 메뉴 화면이 여기에 그려집니다 --></main>
 

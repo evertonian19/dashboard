@@ -43,8 +43,8 @@ public/                   브라우저에 내려가는 파일 (login.* 를 뺀 �
     main.js               진입점 (type="module")
     core/                 api, dom, format, state, registry(메뉴 목록), hooks, uploads …
     views/                메뉴별 화면: home todos usage settings diagrams documents board mail empty
-    shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션
-  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand
+    shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션, 하늘(sky: 서울 일출·일몰에 맞춘 해/달/잔디 배경, `?sky=HH:MM` 으로 시각 고정)
+  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → sky
 tests/smoke_api.py        API 회귀 스크립트
 ```
 
