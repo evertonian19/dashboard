@@ -13,311 +13,33 @@ Environment:
     CLAUDE_USAGE_FILE  official limit snapshot written by the Claude Code status line
 """
 import getpass
-import glob
 import json
 import mimetypes
 import os
 import re
 import secrets
-import shutil
-import subprocess
 import sys
 import threading
-import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlparse
 
 from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, PUBLIC_PATHS, SESSION_TTL, _login_failures, _login_lock, _token_hash, check_login, set_login
 from backend.bootstrap import init
-from backend.config import CLAUDE_DIR, DATA, FILES, HOST, INLINE_TYPES, KINDS, LISTED_KINDS, MAX_UPLOAD, PORT, PUBLIC, STARTED, TRASH_DAYS
+from backend.config import DATA, FILES, HOST, INLINE_TYPES, KINDS, LISTED_KINDS, MAX_UPLOAD, PORT, PUBLIC, TRASH_DAYS
 from backend.db import db, get_setting, now_iso, one_line, record, set_setting
 from backend.filenames import clean_name
+from backend.jobs import housekeeping
 from backend.mail import MAIL_PROVIDERS, _mail_lock, _mail_state, check_account, fetch_mail, fetch_mail_body, load_accounts, mail_error, mail_overview, mail_poller, save_accounts
+from backend.oci import oci_status
 from backend.pdf import PDF_SOURCES, SOFFICE, convert_to_pdf
 from backend.sanitize import MAX_BODY, MAX_CATEGORY, MAX_COMMENT, MAX_JSON, MAX_TITLE, sanitize_post
+from backend.system import system_status
 from backend.trash import purge_file, purge_post, purge_trash
+from backend.usage import claude_usage
 from backend.weather import DEFAULT_CITY, geocode, weather
-
-
-# ---------------------------------------------------------------------------
-# OCI: progress of the node-pool retry loop (~/oci-oke) and this month's cost.
-OCI_DIR = os.environ.get("OCI_DIR", os.path.expanduser("~/oci-oke"))
-OCI_COST_TTL = 3600
-_oci_cost = {"checked_at": None, "amount": None, "currency": None, "error": None}
-
-
-def oci_status():
-    out = {"available": False, "running": False, "attempt": None, "last_at": None,
-           "last_result": None, "success": False, "cost": dict(_oci_cost)}
-    log = os.path.join(OCI_DIR, "retry.log")
-    try:
-        with open(log, "rb") as fh:
-            fh.seek(max(0, os.path.getsize(log) - 65536))
-            lines = fh.read().decode("utf-8", "replace").splitlines()
-    except OSError:
-        return out
-    out["available"] = True
-    try:
-        with open(os.path.join(OCI_DIR, "retry.pid")) as fh:
-            pid = int(fh.read().strip())
-        with open(f"/proc/{pid}/cmdline", "rb") as fh:
-            out["running"] = b"retry-nodepool" in fh.read()
-    except (OSError, ValueError):
-        pass
-    for line in reversed(lines):
-        m = re.match(r"\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\] (.*)", line)
-        if not m:
-            continue
-        stamp, text = m.groups()
-        out["last_at"] = out["last_at"] or stamp.replace(" ", "T")
-        if text.startswith("SUCCESS"):
-            out["success"] = True
-            out["last_result"] = out["last_result"] or text[:200]
-        attempt = re.match(r"attempt (\d+): apply rc=(\d+), nodes active=(\d+)", text)
-        if attempt:
-            out["attempt"] = int(attempt.group(1))
-            if not out["last_result"]:
-                out["last_result"] = "성공" if attempt.group(2) == "0" else "실패 (자리 없음, 재시도 중)"
-            break
-    return out
-
-
-def refresh_oci_cost():
-    try:
-        with open(os.path.expanduser("~/.oci/config")) as fh:
-            tenancy = re.search(r"^tenancy\s*=\s*(\S+)", fh.read(), re.M).group(1)
-        now = datetime.now(timezone.utc)
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        end = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        fmt = "%Y-%m-%dT%H:%M:%SZ"
-        res = subprocess.run(
-            [shutil.which("oci") or os.path.expanduser("~/bin/oci"), "usage-api", "usage-summary",
-             "request-summarized-usages", "--tenant-id", tenancy, "--granularity", "MONTHLY",
-             "--query-type", "COST", "--time-usage-started", start.strftime(fmt),
-             "--time-usage-ended", end.strftime(fmt)],
-            capture_output=True, text=True, timeout=90,
-            env={**os.environ, "SUPPRESS_LABEL_WARNING": "True"})
-        if res.returncode != 0:
-            raise RuntimeError((res.stderr or res.stdout).strip().splitlines()[-1][:200])
-        items = (json.loads(res.stdout or "{}").get("data") or {}).get("items") or []
-        amount = sum(float(i.get("computed-amount") or 0) for i in items)
-        currency = next((i.get("currency") for i in items if i.get("currency")), "")
-        _oci_cost.update(amount=round(amount, 2), currency=(currency or "").strip(), error=None)
-    except Exception as exc:
-        _oci_cost.update(error=str(exc)[:200])
-    _oci_cost["checked_at"] = now_iso()
-
-
-def housekeeping():
-    """Hourly: refresh the OCI cost and empty trash older than TRASH_DAYS."""
-    while True:
-        if os.path.isdir(OCI_DIR):
-            refresh_oci_cost()
-        try:
-            purge_trash(TRASH_DAYS)
-        except Exception:
-            pass
-        threading.Event().wait(OCI_COST_TTL)
-
-
-# ---------------------------------------------------------------------------
-# Server status (Linux /proc)
-_cpu_prev = None
-_cpu_lock = threading.Lock()
-
-
-def _cpu_sample():
-    with open("/proc/stat") as fh:
-        nums = [int(x) for x in fh.readline().split()[1:]]
-    return sum(nums), nums[3] + (nums[4] if len(nums) > 4 else 0)
-
-
-def system_status():
-    global _cpu_prev
-    out = {"uptime": time.time() - STARTED, "cores": os.cpu_count()}
-    try:
-        with _cpu_lock:
-            if _cpu_prev is None:
-                _cpu_prev = _cpu_sample()
-                time.sleep(0.25)
-            total, idle = _cpu_sample()
-            dt, di = total - _cpu_prev[0], idle - _cpu_prev[1]
-            if dt > 0:
-                _cpu_prev = (total, idle)
-                out["cpu"] = round(100 * (1 - di / dt), 1)
-        mem = {}
-        with open("/proc/meminfo") as fh:
-            for line in fh:
-                k, v = line.split(":")
-                mem[k] = int(v.split()[0]) * 1024
-        out["mem_total"] = mem["MemTotal"]
-        out["mem_used"] = mem["MemTotal"] - mem.get("MemAvailable", mem.get("MemFree", 0))
-        with open("/proc/uptime") as fh:
-            out["host_uptime"] = float(fh.read().split()[0])
-        out["load"] = os.getloadavg()[0]
-    except (OSError, ValueError, KeyError):
-        pass
-    disk = shutil.disk_usage(DATA)
-    out["disk_total"], out["disk_used"] = disk.total, disk.used
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Claude usage
-#
-# Two sources, used together:
-#   1. Official limits. Claude Code hands its status line the account's real
-#      rate-limit state after every response (5-hour and 7-day used_percentage
-#      and resets_at). ~/.claude/statusline-dashboard.py saves that to
-#      USAGE_FILE. This is the only source for % and the true reset time.
-#   2. Token counts, summed from Claude Code's local logs on this machine.
-# Without (1) the window is estimated from the logs and labelled as such.
-# ---------------------------------------------------------------------------
-USAGE_FILE = os.environ.get("CLAUDE_USAGE_FILE", os.path.expanduser("~/.claude/dashboard-usage.json"))
-WINDOW = timedelta(hours=5)
-_usage_lock = threading.Lock()
-_log_cache = {}  # path -> {"pos": bytes already parsed, "seen": {(msg id, request id): entry}}
-
-
-def _load_usage_entries():
-    """All assistant responses with token usage, oldest first.
-    Log files only grow, so each call parses just the bytes added since the last one."""
-    paths = glob.glob(os.path.join(CLAUDE_DIR, "**", "*.jsonl"), recursive=True)
-    with _usage_lock:
-        for gone in set(_log_cache) - set(paths):
-            del _log_cache[gone]
-        for path in paths:
-            try:
-                size = os.path.getsize(path)
-                state = _log_cache.get(path)
-                if state is None or size < state["pos"]:
-                    state = _log_cache[path] = {"pos": 0, "seen": {}}
-                if size == state["pos"]:
-                    continue
-                with open(path, "rb") as fh:
-                    fh.seek(state["pos"])
-                    chunk = fh.read()
-            except OSError:
-                continue
-            end = chunk.rfind(b"\n") + 1  # leave a partially written last line for next time
-            state["pos"] += end
-            for raw in chunk[:end].splitlines():
-                if b'"usage"' not in raw:
-                    continue
-                try:
-                    d = json.loads(raw)
-                    msg = d.get("message") or {}
-                    usage = msg.get("usage")
-                    if not usage or not d.get("timestamp"):
-                        continue
-                    ts = datetime.fromisoformat(d["timestamp"].replace("Z", "+00:00"))
-                except (ValueError, AttributeError, TypeError):
-                    continue
-                # One response is logged once per content block; the copies are identical.
-                state["seen"][(msg.get("id"), d.get("requestId"))] = {
-                    "ts": ts,
-                    "model": msg.get("model") or "unknown",
-                    "input": int(usage.get("input_tokens") or 0),
-                    "output": int(usage.get("output_tokens") or 0),
-                    "cache_write": int(usage.get("cache_creation_input_tokens") or 0),
-                    "cache_read": int(usage.get("cache_read_input_tokens") or 0),
-                }
-        merged = {}
-        for state in _log_cache.values():
-            merged.update(state["seen"])
-        return sorted(merged.values(), key=lambda e: e["ts"])
-
-
-def _totals(entries):
-    t = {"input": 0, "output": 0, "cache_write": 0, "cache_read": 0, "messages": len(entries)}
-    models = {}
-    for e in entries:
-        for k in ("input", "output", "cache_write", "cache_read"):
-            t[k] += e[k]
-        models[e["model"]] = models.get(e["model"], 0) + e["input"] + e["output"] + e["cache_write"]
-    # "tokens" leaves out cache reads: re-reading cached context is counted on every
-    # turn and would otherwise swamp the figure (often 90%+ of the raw total).
-    t["tokens"] = t["input"] + t["output"] + t["cache_write"]
-    t["by_model"] = [{"model": m, "tokens": v} for m, v in sorted(models.items(), key=lambda kv: -kv[1])]
-    return t
-
-
-def _official_limits(now):
-    try:
-        with open(USAGE_FILE) as fh:
-            snap = json.load(fh)
-        captured = datetime.fromtimestamp(float(snap["captured_at"]), timezone.utc)
-    except (OSError, ValueError, KeyError, TypeError):
-        return None
-    out = {"captured_at": captured.astimezone().isoformat(timespec="seconds"),
-           "age_seconds": max(0, int((now - captured).total_seconds()))}
-    for key in ("five_hour", "seven_day"):
-        win = (snap.get("rate_limits") or {}).get(key) or {}
-        if win.get("used_percentage") is None or not win.get("resets_at"):
-            continue
-        reset = datetime.fromtimestamp(float(win["resets_at"]), timezone.utc)
-        out[key] = {
-            "used_percentage": float(win["used_percentage"]),
-            "resets_at": reset.astimezone().isoformat(timespec="seconds"),
-            # Past its reset time the saved percentage no longer applies.
-            "expired": now >= reset,
-            "_reset": reset,
-        }
-    return out if ("five_hour" in out or "seven_day" in out) else None
-
-
-def claude_usage():
-    entries = _load_usage_entries()
-    now = datetime.now(timezone.utc)
-    local = lambda dt: dt.astimezone().isoformat(timespec="seconds")
-    limits = _official_limits(now)
-    five = (limits or {}).get("five_hour")
-
-    window = None
-    if five and not five["expired"]:
-        start = five["_reset"] - WINDOW
-        # The window opens with its first request, which can be logged a few minutes
-        # before the rounded start time implied by resets_at.
-        inside = [e for e in entries if e["ts"] >= start - timedelta(minutes=10)]
-        window = {"source": "official", "start": local(start), "reset": local(five["_reset"]), **_totals(inside)}
-    elif not five:
-        # No official data yet: estimate a window from the logs.
-        blocks = []
-        for e in entries:
-            cur = blocks[-1] if blocks else None
-            if cur is None or e["ts"] >= cur["start"] + WINDOW or e["ts"] - cur["last"] >= WINDOW:
-                cur = {"start": e["ts"].replace(minute=0, second=0, microsecond=0), "entries": []}
-                blocks.append(cur)
-            cur["entries"].append(e)
-            cur["last"] = e["ts"]
-        if blocks and now < blocks[-1]["start"] + WINDOW:
-            b = blocks[-1]
-            window = {"source": "estimate", "start": local(b["start"]), "reset": local(b["start"] + WINDOW),
-                      **_totals(b["entries"])}
-
-    if limits:
-        for key in ("five_hour", "seven_day"):
-            limits.get(key, {}).pop("_reset", None)
-
-    today = datetime.now().astimezone().date()
-    days = []
-    for offset in range(6, -1, -1):
-        day = today - timedelta(days=offset)
-        days.append({"date": day.isoformat(),
-                     "tokens": _totals([e for e in entries if e["ts"].astimezone().date() == day])["tokens"]})
-
-    return {
-        "available": bool(entries) or bool(limits),
-        "now": local(now),
-        "limits": limits,
-        "window": window,
-        "today": _totals([e for e in entries if e["ts"].astimezone().date() == today]),
-        "days": days,
-        "last_message": local(entries[-1]["ts"]) if entries else None,
-    }
 
 
 # ---------------------------------------------------------------------------
