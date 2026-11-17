@@ -1,0 +1,6 @@
+/* 게시판: 카테고리 필터 칩 (본문 상단) — fm-theme 의 각진 탭 규칙보다 뒤에 와야 합니다 */
+.cat-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; border: 0; overflow: visible; }
+.cat-tabs .tab { height: 32px; line-height: 30px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.cat-tabs .tab:hover { background: var(--zebra); color: var(--ink); }
+.cat-tabs .tab[aria-current="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+.cat-tabs .tab small { margin-left: 4px; opacity: .75; font-weight: 500; }
