@@ -115,7 +115,7 @@ body { background: radial-gradient(900px 380px at 12% -60px, color-mix(in srgb, 
   .topbar .search-wrap { flex: 1 1 auto; }
   .sidebar { top: 0; height: 100vh; grid-row: auto; padding: 16px 0 8px; }
   .sidebar .brand { display: flex; }
-  .subtabs, .main, .statusbar, .sky-band { grid-column: 1; }
+  .subtabs, .main, .statusbar, .locker-band { grid-column: 1; }
   .subtabs { padding: 0 12px; }
   .crumb { padding-right: 12px; }
   .main { padding: 10px 14px 56px; }

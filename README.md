@@ -43,8 +43,8 @@ public/                   브라우저에 내려가는 파일 (login.* 를 뺀 �
     main.js               진입점 (type="module")
     core/                 api, dom, format, state, registry(메뉴 목록), hooks, uploads …
     views/                메뉴별 화면: home todos usage settings diagrams documents board mail empty
-    shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션, 하늘(sky: 서울 일출·일몰에 맞춘 해/달/잔디 배경, `?sky=HH:MM` 시각 고정, `?moon=0~1` 월령 고정, `?sat=1`/`?sat=loop` 위성 바로·반복 보기)
-  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → sky
+    shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션, 라커룸 띠(locker: 상단에 Everton 유니폼 뒷면, 선수 목록은 `locker.js` 의 `PLAYERS`)
+  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → locker
 tests/smoke_api.py        API 회귀 스크립트
 ```
 

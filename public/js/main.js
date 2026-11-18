@@ -11,9 +11,9 @@ import './shell/statusbar.js';
 import './shell/theme.js';
 import './shell/search.js';
 import './shell/session.js';
-import { startSky } from './shell/sky.js';
+import { startLocker } from './shell/locker.js';
 
-startSky();
+startLocker();
 hooks.show = show;
 hooks.applyMenuNames = applyMenuNames;
 
