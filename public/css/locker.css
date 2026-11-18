@@ -8,11 +8,17 @@
 .locker-item { position: relative; flex: 1 1 var(--locker-w); min-width: var(--locker-w); max-width: 150px; height: 100%; display: flex; align-items: flex-start; justify-content: center; padding-top: 8px;
   border-left: 1px solid rgba(255, 255, 255, .05); border-right: 2px solid rgba(0, 0, 0, .45);
   background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 3px, transparent 3px 9px); }
-.jersey { height: calc(var(--band-h) - 20px); width: auto; display: block; fill: none; stroke: none; overflow: visible; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55)); }
+.jersey { height: calc(var(--band-h) - 20px); width: auto; display: block; fill: none; stroke: none; overflow: visible; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55)); position: relative; z-index: 1; }
 .jersey .hanger { fill: none; stroke: #b9bec9; stroke-width: 1.4; stroke-linecap: round; }
 .jersey .jn { fill: #fff; stroke: none; font-family: "Pretendard Variable", Pretendard, "Segoe UI", sans-serif; font-weight: 800; letter-spacing: .08em; }
 .jersey .armband { fill: var(--ev-amber); stroke: none; }
 .jersey .jx { fill: #fff; stroke: var(--ev-amber); stroke-width: .5; paint-order: stroke; font-family: "Pretendard Variable", Pretendard, "Segoe UI", sans-serif; font-weight: 900; }
 .jersey.gk-kit .jn, .jersey.gk-kit .jx { fill: #eaf2ff; }
 .jersey.gk-kit .jx { stroke: #0a1d4a; stroke-width: .7; }
+/* 골키퍼 유리빛: 몸통 위를 6초에 한 번 훑고 쉼 */
+.glint { transform: skewX(-18deg); animation: glint 6s ease-in-out infinite; }
+@keyframes glint { 0% { transform: translateX(0) skewX(-18deg); } 45%, 100% { transform: translateX(200px) skewX(-18deg); } }
+.locker-item.gk { background: radial-gradient(70% 55% at 50% 45%, rgba(110, 160, 255, .2), transparent 70%), repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 3px, transparent 3px 9px); }
+.locker-item::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 9px; height: 6px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), transparent); }
+@media (prefers-reduced-motion: reduce) { .glint { animation: none; opacity: 0; } }
 @media (max-width: 760px) { :root { --band-h: 88px; --locker-w: 72px; } .locker-band { grid-column: 1; } }

@@ -25,7 +25,7 @@ function jerseyMarkup(p) {
   const kit = p.gk ? 'jerseyGK' : 'jersey';
   return `<div class="locker-item${p.gk ? ' gk' : ''}" title="${p.num} ${p.name} · vs ${MATCH.vs} ${MATCH.date}"><svg class="jersey${p.gk ? ' gk-kit' : ''}" viewBox="0 -14 100 134" role="presentation">
     <path class="hanger" d="M50 -4V-8a3 3 0 1 1 3 3M50 -4L18 11M50 -4L82 11"/>
-    <use href="#${kit}"/>
+    <use href="#${kit}" x="0" y="0" width="100" height="120"/>${p.gk ? '<g clip-path="url(#jClip)"><rect class="glint" x="-34" y="-6" width="26" height="140" fill="url(#jGlint)"/></g>' : ''}
     ${p.captain ? '<path class="armband" d="M5 31.5L18 41.5L16.5 43.5L3.8 33.6Z"/>' : ''}
     <text class="jn" x="50" y="37" text-anchor="middle" font-size="${nameSize(name).toFixed(2)}">${name}</text>
     <text class="jx" x="50" y="82" text-anchor="middle" font-size="${p.num >= 10 ? 38 : 44}">${p.num}</text>
