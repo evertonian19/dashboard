@@ -34,6 +34,8 @@ export const QUOTES = [
   { q: '배움에 뜻을 세우지 않으면 아무것도 이루지 못한다.', who: '이이', era: 'modern', side: 'east' },
   { q: '아는 것은 행하는 것의 시작이고, 행하는 것은 아는 것의 완성이다.', who: '왕양명', era: 'modern', side: 'east' },
   { q: '젊을 때 배움을 쉽게 여기지 말라. 한 순간의 시간도 가벼이 보내지 말라.', who: '주희', era: 'modern', side: 'east' },
+  { q: '마음 밖에 이치가 없다.', who: '왕양명', era: 'modern', side: 'east' },
+  { q: '사물을 밝혀 앎에 이른다.', who: '주희', era: 'modern', side: 'east' },
   // 현대
   { q: '말할 수 없는 것에 대해서는 침묵해야 한다.', who: '루트비히 비트겐슈타인', era: 'contemporary', side: 'west' },
   { q: '내 언어의 한계가 내 세계의 한계이다.', who: '루트비히 비트겐슈타인', era: 'contemporary', side: 'west' },
@@ -45,6 +47,9 @@ export const QUOTES = [
   { q: '인간은 존재의 목자이다.', who: '마르틴 하이데거', era: 'contemporary', side: 'west' },
   { q: '순수 경험이 유일한 실재이다.', who: '니시다 기타로', era: 'contemporary', side: 'east' },
   { q: '하늘은 사람 위에 사람을 만들지 않고, 사람 아래 사람을 만들지 않았다.', who: '후쿠자와 유키치', era: 'contemporary', side: 'east' },
+  { q: '희망은 본래 있다고도 없다고도 할 수 없다. 땅 위의 길과 같아서, 걷는 사람이 많아지면 그것이 길이 된다.', who: '루쉰', era: 'contemporary', side: 'east' },
+  { q: '사람이 곧 하늘이다.', who: '최시형', era: 'contemporary', side: 'east' },
+  { q: '생각하는 백성이라야 산다.', who: '함석헌', era: 'contemporary', side: 'east' },
 ];
 
 // 직전에 보여준 것(prev)과 다른 명언을 무작위로 고른다.

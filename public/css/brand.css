@@ -8,5 +8,5 @@
 .login-brand .brand-mark { width: 34px; height: 34px; }
 
 /* 홈 상단 철학자 명언 */
-.page-title.quote-text { font-size: clamp(15px, 1.6vw, 19px); font-weight: 700; line-height: 1.4; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 62ch; }
+.page-title.quote-text { font-size: clamp(15px, 1.6vw, 19px); font-weight: 700; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 62ch; }
 .quote-who { margin: 2px 0 0; font-size: 12px; color: var(--muted, #8a93a6); }

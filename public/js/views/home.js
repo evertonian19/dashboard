@@ -19,7 +19,7 @@ function renderHome(menu) {
     <header class="page-head">
       <div>
         <p class="eyebrow">${esc(menu.label)}</p>
-        <h1 class="page-title quote-text" id="greeting" role="button" tabindex="0" title="클릭하면 다른 명언">안녕하세요</h1>
+        <h1 class="page-title quote-text" id="greeting">안녕하세요</h1>
         <p class="quote-who" id="quoteWho"></p>
       </div>
       <div class="clock" aria-live="off">
@@ -198,8 +198,6 @@ function mountHome() {
     $('#quoteWho').textContent = `— ${cur.who}`;
   };
   showQuote();
-  $('#greeting').addEventListener('click', showQuote);
-  $('#greeting').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showQuote(); } });
   tickClock();
   every(1000, tickClock);
 
