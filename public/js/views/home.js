@@ -8,6 +8,7 @@ import { icon } from '../core/icons.js';
 import { KIND_LABEL, menuName } from '../core/registry.js';
 import { config, every, lifecycle } from '../core/state.js';
 import { todoRow, wireTodos } from './todos.js';
+import { randomQuote } from '../core/quotes.js';
 import { USAGE_POLL_MS, loadUsage, tickUsage } from './usage.js';
 
 /* ------------------------------------------------------------------
@@ -18,7 +19,8 @@ function renderHome(menu) {
     <header class="page-head">
       <div>
         <p class="eyebrow">${esc(menu.label)}</p>
-        <h1 class="page-title" id="greeting">안녕하세요</h1>
+        <h1 class="page-title quote-text" id="greeting" role="button" tabindex="0" title="클릭하면 다른 명언">안녕하세요</h1>
+        <p class="quote-who" id="quoteWho"></p>
       </div>
       <div class="clock" aria-live="off">
         <p class="clock-time" id="clockTime">--:--</p>
@@ -186,11 +188,18 @@ function mountHome() {
   $('#homeEdit').addEventListener('click', openHomeEditor);
   const tickClock = () => {
     const now = new Date();
-    const h = now.getHours();
-    $('#greeting').textContent = h < 5 ? '늦은 밤이에요' : h < 12 ? '좋은 아침이에요' : h < 18 ? '좋은 오후예요' : '좋은 저녁이에요';
     $('#clockTime').textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     $('#clockDate').textContent = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   };
+  let cur = null;
+  const showQuote = () => {
+    cur = randomQuote(cur);
+    $('#greeting').textContent = `“${cur.q}”`;
+    $('#quoteWho').textContent = `— ${cur.who}`;
+  };
+  showQuote();
+  $('#greeting').addEventListener('click', showQuote);
+  $('#greeting').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showQuote(); } });
   tickClock();
   every(1000, tickClock);
 
