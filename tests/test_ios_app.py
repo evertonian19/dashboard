@@ -195,6 +195,49 @@ class WikidataTests(unittest.TestCase):
         self.assertEqual(ov["301166"]["birthDate"], "2002-10-21")
 
 
+def imageinfo(title, license_short, artist="<a href='x'>Jane &amp; Co</a>"):
+    return {"title": "File:" + title, "imageinfo": [{"thumburl": "https://upload.wikimedia.org/t/" + title, "url": "u",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:" + title,
+            "extmetadata": {"LicenseShortName": {"value": license_short}, "Artist": {"value": artist},
+                            "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0"}}}]}
+
+
+class PhotoTests(unittest.TestCase):
+    def test_free_license_filter(self):
+        for ok in ("CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain", "CC-BY-2.0", "Attribution"):
+            self.assertTrue(wikidata.free_license(ok), ok)
+        for bad in ("", None, "Fair use", "CC BY-NC 4.0", "CC BY-ND 2.0", "All rights reserved", "Copyrighted free use"):
+            self.assertFalse(wikidata.free_license(bad), bad)
+
+    def test_parse_imageinfo_keeps_free_only_and_cleans_author(self):
+        data = {"query": {"pages": [imageinfo("A.jpg", "CC BY-SA 4.0"), imageinfo("B.jpg", "Fair use"),
+                                    {"title": "File:C.jpg", "missing": True}]}}
+        out = wikidata.parse_imageinfo(data)
+        self.assertEqual(list(out), ["A.jpg"])
+        self.assertEqual(out["A.jpg"]["author"], "Jane & Co")
+        self.assertTrue(out["A.jpg"]["pageURL"].endswith("File:A.jpg"))
+
+    def _finish(self, photos, overrides=None, known=None):
+        orig = wikidata.commons_info
+        wikidata.commons_info = lambda files: {f: known[f] for f in files if f in (known or {})}
+        try:
+            plain = [dict(BARRY_ESPN, bioSource="espn", bioDisputed={}, bioPending=False, bioVerified=False, bioSuspect=False,
+                          photoURL=None, photoCredit=None)]
+            return wikidata._finish(plain, {}, overrides or {}, None, (set(), set(), photos))[0]
+        finally:
+            wikidata.commons_info = orig
+
+    META = {"X.jpg": {"url": "https://u/x.jpg", "author": "Jane", "license": "CC BY 4.0", "licenseURL": None, "pageURL": "p"}}
+
+    def test_photo_attached_only_for_identified_entity(self):
+        self.assertEqual(self._finish({301166: "X.jpg"}, known=self.META)["photoURL"], "https://u/x.jpg")
+        self.assertIsNone(self._finish({}, known=self.META)["photoURL"])        # 확인되지 않은 선수에는 붙이지 않는다
+
+    def test_override_can_block_or_set_photo(self):
+        self.assertIsNone(self._finish({301166: "X.jpg"}, {"301166": {"photo": None}}, self.META)["photoURL"])
+        self.assertEqual(self._finish({}, {"301166": {"photo": "X.jpg"}}, self.META)["photoCredit"]["author"], "Jane")
+
+
 class StatusTests(unittest.TestCase):
     def test_status_has_core_numbers(self):
         s = ios_status()

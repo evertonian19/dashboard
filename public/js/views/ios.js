@@ -174,7 +174,7 @@ function playerView(id) {
   const p = findPlayer(id);
   if (!p) return err('선수를 찾지 못했어요.');
   const sub = subOf('player', 'ov'), s = p.stats, apps = s ? s.appearances : 0;
-  const hero = panel('', `<div class="ph"><span class="av">${esc(p.name.slice(0, 1))}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
+  const hero = panel('', `<div class="ph"><span class="av">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
       <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>`, 'fm-hero');
   const tabs = subTabs('player', [['ov', '개요'], ['stats', '기록'], ['info', '정보']], sub);
   let body;
@@ -188,6 +188,9 @@ function playerView(id) {
     const kv = (k, v, note = '') => `<tr><td class="tl">${k}</td><td>${esc(v ?? '-')}${note}</td></tr>`;
     const dis = p.bioDisputed || {};
     const warn = (field, fmt = (x) => x) => (field in dis ? ` <i class="bio-warn" title="ESPN 원본: ${esc(fmt(dis[field]) ?? '-')}">!</i>` : '');
+    const pc = p.photoCredit;
+    const photoLine = pc ? `<p class="p-note">사진: ${esc(pc.author)} · ${pc.licenseURL ? `<a href="${esc(pc.licenseURL)}" target="_blank" rel="noopener">${esc(pc.license)}</a>` : esc(pc.license)} · ${
+      pc.pageURL ? `<a href="${esc(pc.pageURL)}" target="_blank" rel="noopener">Wikimedia Commons</a>` : 'Wikimedia Commons'}</p>` : '<p class="p-note">사진: 자유 라이선스 사진이 없어 이니셜로 표시합니다.</p>';
     const srcText = { override: '수동 보정', wikidata: 'Wikidata 보정', espn: p.bioVerified ? 'ESPN · Wikidata 교차 확인' : 'ESPN 원본 (미검증)' }[p.bioSource] || 'ESPN';
     const disNote = Object.keys(dis).length
       ? `<p class="p-note bio-note">ESPN 원본은 ${[['nationality', '국적', (x) => x], ['birthDate', '생년월일', (x) => x], ['heightCM', '키', (x) => (x ? x + ' cm' : '-')]]
@@ -195,7 +198,7 @@ function playerView(id) {
     body = panel('선수 정보', `<table class="fm-t fm-kv">${kv('국적', p.nationality, warn('nationality'))}${kv('포지션', POS[p.position][1])}${kv('나이', p.age != null ? p.age + '세' : null)}
       ${kv('생년월일', p.birthDate, warn('birthDate'))}${kv('키', p.heightCM ? p.heightCM + ' cm' : null, warn('heightCM', (x) => (x ? x + ' cm' : '-')))}${kv('몸무게', p.weightKG ? p.weightKG + ' kg' : null)}
       ${kv('출생지', p.birthPlace)}${kv('등번호', p.number)}</table>
-      <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 사진·평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>${disNote}`);
+      <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>${photoLine}${disNote}`);
   } else {
     const tags = p.strengths.length ? `<div class="p-tags"><small>강점</small>${p.strengths.map((t) => `<b>${esc(t)}</b>`).join('')}</div>` : '';
     const bars = p.radar.map((m) => `<div class="ab"><span>${esc(m.label)}</span><div><i class="${attrClass(m.value)}" style="width:${Math.max(m.value * 100, 3)}%"></i></div><em class="${attrClass(m.value)}">${Math.round(m.value * 100)}</em></div>`).join('');

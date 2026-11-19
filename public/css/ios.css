@@ -86,7 +86,8 @@
 
 /* 선수 */
 .ph { display: flex; align-items: center; gap: 12px; text-align: left; } .ph > div { display: grid; gap: 3px; } .ph b { font-size: 15px; }
-.av { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 6px; background: linear-gradient(160deg, #2B4A86, #14213D); font-weight: 900; font-size: 24px; color: #CFE3FF; }
+.av { position: relative; flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: linear-gradient(160deg, #2B4A86, #14213D); font-weight: 900; font-size: 26px; color: #CFE3FF; } .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.p-note a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
 .p-tags { display: flex; gap: 6px; align-items: center; } .p-tags b { padding: 2px 9px; border-radius: 99px; background: #F5C451; color: #1a1405; font-size: 11px; }
 .radar { width: 100%; height: auto; aspect-ratio: 252 / 208; max-width: 280px; margin: 0 auto; display: block; } .radar .rg { fill: none; stroke: #2C3646; } .radar .rs { fill: rgba(63, 169, 245, .3); stroke: var(--blue); stroke-width: 2; } .radar text { fill: var(--tx2); font-size: 9px; stroke: none; }
 .abs { display: grid; gap: 5px; margin-top: 6px; } .ab { display: grid; grid-template-columns: 68px 1fr 28px; gap: 8px; align-items: center; font-size: 11.5px; } .ab > div { height: 6px; border-radius: 3px; background: #232C3A; } .ab i { display: block; height: 100%; border-radius: 3px; } .ab em { font-style: normal; font-weight: 800; text-align: right; }

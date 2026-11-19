@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 
 API = "https://www.wikidata.org/w/api.php"
+COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 UA = "Mozilla/5.0 (compatible; fm-dashboard/1.0)"
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DASH_DATA_DIR") or os.path.join(os.path.dirname(HERE), "data")
@@ -89,11 +90,11 @@ class NetOff(Exception):
     """캐시만 쓰는 모드(또는 429 쿨다운 중)라 네트워크를 쓰지 않는다."""
 
 
-def _api(**params):
+def _api(_base=None, **params):
     if getattr(_local, "offline", False):
         raise NetOff()
     params.update(format="json", formatversion="2")
-    req = urllib.request.Request(API + "?" + urllib.parse.urlencode(params), headers={"User-Agent": UA})
+    req = urllib.request.Request((_base or API) + "?" + urllib.parse.urlencode(params), headers={"User-Agent": UA})
     with _net_lock:                    # 직렬 호출 + 간격 유지
         now = time.time()
         if now < _state["blocked_until"]:
@@ -148,16 +149,16 @@ def entities(ids):
     """id → 엔티티. 개별로 캐시해서 다음 호출은 네트워크 없이 끝난다."""
     mem = _load()
     now = time.time()
-    missing = [i for i in set(ids) if not (mem.get("ent:" + i) and now - mem["ent:" + i]["at"] < TTL)]
+    missing = [i for i in set(ids) if not (mem.get("ent2:" + i) and now - mem["ent2:" + i]["at"] < TTL)]
     if missing:
         try:
             for qid, ent in _entities(missing).items():
                 slim = _slim(ent)
                 with _lock:
-                    mem["ent:" + qid] = {"at": now, "v": slim}
+                    mem["ent2:" + qid] = {"at": now, "v": slim}
         except Exception:
             pass                       # 실패해도 캐시에 있는 것만으로 진행(오래된 값 포함)
-    return {i: mem["ent:" + i]["v"] for i in ids if ("ent:" + i) in mem}
+    return {i: mem["ent2:" + i]["v"] for i in ids if ("ent2:" + i) in mem}
 
 
 def _claim_ids(ent, prop):
@@ -186,13 +187,82 @@ def _slim(ent):
 
     dob = first_value("P569")
     height = first_value("P2048")
-    return {"label": ((ent.get("labels") or {}).get("en") or {}).get("value", ""),
+    imgs = claims.get("P18", [])
+    best = next((c for c in imgs if c.get("rank") == "preferred"), imgs[0] if imgs else None)
+    image = ((best or {}).get("mainsnak") or {}).get("datavalue", {}).get("value")
+    return {"image": image if isinstance(image, str) else None, "label": ((ent.get("labels") or {}).get("en") or {}).get("value", ""),
             "aliases": [a.get("value", "") for a in (ent.get("aliases") or {}).get("en", [])],
             "teams": teams,
             "dob": dob.get("time") if isinstance(dob, dict) and dob.get("precision", 0) >= 11 else None,
             "height": [height.get("amount"), (height.get("unit") or "").rsplit("/", 1)[-1]] if isinstance(height, dict) else None,
             "citizen": [q for q, _ in _claim_ids(ent, "P27")], "birthplace": [q for q, _ in _claim_ids(ent, "P19")][:1],
             "iso": first_value("P298")}   # 국가의 ISO 3자리 코드(ESPN 국기 파일명)
+
+
+# ---------------------------------------------------------------------------
+# 사진 (Wikimedia Commons, 자유 라이선스만)
+
+FREE_LICENSE = re.compile(r"^(cc[ -]?by|cc0|public domain|pd[ -]|pd$|attribution|gfdl|cc[ -]?zero)", re.I)
+NON_FREE = re.compile(r"(\bnc\b|\bnd\b|-nc|-nd|fair use|non-?free|all rights reserved)", re.I)
+
+
+def _plain(html_text):
+    import html
+    return html.unescape(re.sub(r"<[^>]+>", "", html_text or "")).strip()[:80]
+
+
+def free_license(short):
+    return bool(short) and bool(FREE_LICENSE.search(short.strip())) and not NON_FREE.search(short)
+
+
+def parse_imageinfo(data):
+    """Commons imageinfo 응답 → {파일명: {url, author, license, licenseURL, pageURL}} (자유 라이선스만)."""
+    out = {}
+    for page in (data.get("query") or {}).get("pages", []):
+        info = (page.get("imageinfo") or [None])[0]
+        if not info:
+            continue
+        meta = info.get("extmetadata") or {}
+        lic = _plain((meta.get("LicenseShortName") or {}).get("value"))
+        if not free_license(lic) or not info.get("thumburl"):
+            continue
+        name = (page.get("title") or "").split(":", 1)[-1]
+        out[name] = {"url": info["thumburl"], "author": _plain((meta.get("Artist") or {}).get("value")) or "Wikimedia Commons",
+                     "license": lic, "licenseURL": (meta.get("LicenseUrl") or {}).get("value") or None,
+                     "pageURL": info.get("descriptionurl")}
+    return out
+
+
+def commons_info(files):
+    """파일명 목록 → {파일명: 메타}. 7일 캐시. 자유 라이선스가 아니면 결과에서 빠진다(캐시에는 None 으로 기억)."""
+    mem = _load()
+    now = time.time()
+    names = sorted({f.replace("_", " ") for f in files if f})
+    out, missing = {}, []
+    for n in names:
+        hit = mem.get("commons:" + n)
+        if hit and now - hit["at"] < TTL:
+            if hit["v"]:
+                out[n] = hit["v"]
+        else:
+            missing.append(n)
+    for i in range(0, len(missing), 40):
+        chunk = missing[i:i + 40]
+        try:
+            data = _api(COMMONS_API, action="query", prop="imageinfo", iiprop="url|extmetadata", iiurlwidth=320,
+                        titles="|".join("File:" + n for n in chunk))
+        except Exception:
+            for n in chunk:                                     # 실패하면 오래된 값이라도 쓴다
+                if mem.get("commons:" + n) and mem["commons:" + n]["v"]:
+                    out[n] = mem["commons:" + n]["v"]
+            continue
+        found = parse_imageinfo(data)
+        for n in chunk:
+            with _lock:
+                mem["commons:" + n] = {"at": now, "v": found.get(n)}
+            if found.get(n):
+                out[n] = found[n]
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +423,7 @@ def _build(plain, espn_team_id, club_name, overrides, today):
     # 소속 확인이 안 된 선수(Wikidata 의 소속 정보가 낡은 경우)는 생년월일이 ESPN 과 같은 후보가 있으면 '교차 확인됨',
     # 이름이 같은 후보가 있는데 어느 것도 생년월일이 다르면 '의심'으로만 표시하고 값은 바꾸지 않는다.
     verified, suspect = set(), set()
+    photos = {pid: matched[pid].get("image") for pid in result if matched[pid].get("image")}
     for p in plain:
         if p["id"] in result:
             continue
@@ -360,19 +431,33 @@ def _build(plain, espn_team_id, club_name, overrides, today):
         dobs = {_parse_dob(e.get("dob")) for e in named} - {None}
         if p.get("birthDate") and p["birthDate"] in dobs:
             verified.add(p["id"])
+            same = next((e for e in named if _parse_dob(e.get("dob")) == p["birthDate"]), None)
+            if same and same.get("image") and len([e for e in named if _parse_dob(e.get("dob")) == p["birthDate"]]) == 1:
+                photos[p["id"]] = same["image"]          # 이름·생년월일이 모두 일치하는 단 하나의 항목만 신뢰
         elif dobs:
             suspect.add(p["id"])
-    _build.last = (verified, suspect)
+    _local.last = (verified, suspect, photos)
+    wanted_files = set(photos.values()) | {ov["photo"] for ov in overrides.values() if ov.get("photo")}
+    if wanted_files:
+        commons_info(wanted_files)                      # 온라인이면 캐시를 채우고, 캐시 전용 모드면 그냥 지나간다
     return result
 
 
 def _finish(plain, matched, overrides, today, extra=None):
-    verified, suspect = extra or (set(), set())
+    verified, suspect, photos = extra or (set(), set(), {})
+    files = dict(photos)
+    for pid_text, ov in overrides.items():                      # 수동 지정(파일명)/금지(null)가 자동 매칭보다 우선
+        if "photo" in ov:
+            files[int(pid_text)] = ov["photo"]
+    info = commons_info([f for f in files.values() if f]) if files else {}
     out = []
     for p in plain:
         q = p
         q["bioVerified"] = p["id"] in verified or p["id"] in matched
         q["bioSuspect"] = p["id"] in suspect
+        meta = info.get((files.get(p["id"]) or "").replace("_", " "))
+        q["photoURL"] = meta["url"] if meta else None
+        q["photoCredit"] = {k: meta[k] for k in ("author", "license", "licenseURL", "pageURL")} if meta else None
         if p["id"] in matched:
             q = apply_facts(p, matched[p["id"]], "wikidata", today)
         ov = overrides.get(str(p["id"]))
@@ -393,7 +478,7 @@ def enrich(players, espn_team_id, club_name, today=None, block=False):
     기본은 캐시로 즉시 응답하고, 캐시에 없는 값은 백그라운드 스레드가 채운다(다음 요청부터 반영, bioPending=True).
     block=True 면 끝까지 기다린다(감사·테스트용). 어떤 경우에도 예외 없이 ESPN 값은 돌려준다."""
     overrides = load_overrides()
-    plain = [dict(p, bioSource="espn", bioDisputed={}, bioPending=False, bioVerified=False, bioSuspect=False) for p in players]
+    plain = [dict(p, bioSource="espn", bioDisputed={}, bioPending=False, bioVerified=False, bioSuspect=False, photoURL=None, photoCredit=None) for p in players]
 
     def run(offline):
         _local.offline = offline
@@ -405,14 +490,14 @@ def enrich(players, espn_team_id, club_name, today=None, block=False):
             _local.offline = False
 
     if block:
-        _build.last = (set(), set())
+        _local.last = (set(), set(), {})
         matched = run(False)
         _save()
-        return _finish(plain, matched, overrides, today, _build.last)
+        return _finish(plain, matched, overrides, today, _local.last)
 
-    _build.last = (set(), set())
+    _local.last = (set(), set(), {})
     matched = run(True)                                # 캐시만
-    extra = _build.last
+    extra = _local.last
     complete = len(matched) >= sum(1 for p in plain if p["id"] in matched) and all(
         ("search:" + norm(p["name"])) in _load() for p in plain)
     if not complete and espn_team_id not in _jobs:
@@ -424,7 +509,11 @@ def enrich(players, espn_team_id, club_name, today=None, block=False):
                 _jobs.pop(espn_team_id, None)
         _jobs[espn_team_id] = threading.Thread(target=job, daemon=True)
         _jobs[espn_team_id].start()
-    out = _finish(plain, matched, overrides, today, extra)
+    _local.offline = True                                # 응답 경로에서는 절대 네트워크를 기다리지 않는다
+    try:
+        out = _finish(plain, matched, overrides, today, extra)
+    finally:
+        _local.offline = False
     if not complete:
         for q in out:
             q["bioPending"] = q["bioSource"] == "espn"

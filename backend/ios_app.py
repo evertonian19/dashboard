@@ -1,6 +1,6 @@
 """iOS 앱(~/ios_everton)의 서비스·계산 로직을 옮긴 것. 데이터는 ESPN 공개 API 실데이터(backend/espn.py).
 
-필드 이름은 Swift 모델(camelCase)을 따른다. ESPN 이 주지 않는 값(평점, 패스·태클 등, 선수 사진)은 None 이며
+필드 이름은 Swift 모델(camelCase)을 따른다. ESPN 이 주지 않는 값(평점, 패스·태클 등)은 None 이며(선수 사진은 Wikidata/Commons 에서 보강)
 임의의 값으로 채우지 않는다. 가져오기에 실패하면 가짜 데이터 대신 오류를 돌려준다.
 """
 import threading
@@ -20,7 +20,7 @@ POSITIONS = {
     "goalkeeper": {"short": "GK", "title": "골키퍼"}, "defender": {"short": "DF", "title": "수비수"},
     "midfielder": {"short": "MF", "title": "미드필더"}, "attacker": {"short": "FW", "title": "공격수"}}
 EVENT_ICONS = {"goal": "⚽️", "ownGoal": "🥅", "missedPenalty": "❌", "yellow": "🟨", "red": "🟥"}
-UNAVAILABLE = ["선수 평점", "패스·태클·드리블·키패스·출전 시간", "선수 사진", "구단 창단연도·수용 인원"]
+UNAVAILABLE = ["선수 평점", "패스·태클·드리블·키패스·출전 시간", "구단 창단연도·수용 인원"]   # 선수 사진은 Commons 에 있는 선수만(아래 점검 항목)
 NEWS_FEED = "https://feeds.bbci.co.uk/sport/football/teams/everton/rss.xml"
 NEWS_TTL = 900
 _news = {"at": 0.0, "items": None}
@@ -277,6 +277,11 @@ def diagnostics():
     try:
         audit = bio_audit()
         report["bio"] = audit
+        sq = squad()["players"]
+        with_photo = [p for p in sq if p.get("photoURL")]
+        report["missingPhotos"] = len(sq) - len(with_photo)
+        report["checks"].append({"title": "선수 사진", "level": "ok" if len(with_photo) == len(sq) else "warning",
+            "detail": "%d/%d명 (Wikimedia Commons, 자유 라이선스·작성자 표기). 없는 선수는 이니셜로 표시합니다." % (len(with_photo), len(sq))})
         lvl = "ok" if not audit["disputed"] else "warning"
         names = ", ".join(d["name"] for d in audit["disputed"])
         report["checks"].append({"title": "선수 신상 교차 검증", "level": lvl,
