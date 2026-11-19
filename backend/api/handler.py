@@ -101,13 +101,13 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
                 "/api/rates": lambda: self.send_json(rail_rates()),
                 "/api/everton": lambda: self.send_json(everton_overview()),
                 "/api/ios/status": lambda: self.send_json(ios_status()),
-                "/api/ios/overview": lambda: self.send_json(ios_app.overview()),
-                "/api/ios/matches": lambda: self.send_json(ios_app.matches()),
-                "/api/ios/squad": lambda: self.send_json(ios_app.squad()),
-                "/api/ios/clubs": lambda: self.send_json(ios_app.clubs()),
-                "/api/ios/standings": lambda: self.send_json(ios_app.standings()),
-                "/api/ios/news": lambda: self.send_json(ios_app.news()),
-                "/api/ios/diagnostics": lambda: self.send_json(ios_app.diagnostics()),
+                "/api/ios/overview": lambda: self.ios_json(ios_app.overview),
+                "/api/ios/matches": lambda: self.ios_json(ios_app.matches),
+                "/api/ios/squad": lambda: self.ios_json(lambda: ios_app.squad(int(q.get("club", [ios_app.TEAM_ID])[0]))),
+                "/api/ios/clubs": lambda: self.ios_json(ios_app.clubs),
+                "/api/ios/standings": lambda: self.ios_json(ios_app.standings),
+                "/api/ios/news": lambda: self.ios_json(ios_app.news),
+                "/api/ios/diagnostics": lambda: self.ios_json(ios_app.diagnostics),
                 "/api/system": lambda: self.send_json(system_status()),
                 "/api/files": lambda: self.list_files(q.get("kind", [""])[0]),
                 "/api/search": lambda: self.search(q.get("q", [""])[0]),
@@ -119,8 +119,7 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
                 return self.get_post(m.group(1))
             m = re.fullmatch(r"/api/ios/match/(\d+)", path)
             if m:
-                detail = ios_app.match_detail(int(m.group(1)))
-                return self.send_json(detail) if detail else self.fail(404, "없는 경기예요")
+                return self.ios_json(lambda: ios_app.match_detail(int(m.group(1))), missing="없는 경기예요")
             m = re.fullmatch(r"/api/files/([0-9a-f]{12})/raw", path)
             if m:
                 return self.raw_file(m.group(1), "download" in q)
@@ -134,6 +133,16 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
             pass
         except Exception as exc:  # keep the server alive, report the failure
             self.fail(500, f"서버 오류: {exc}")
+
+    def ios_json(self, fn, missing=None):
+        """ESPN 실데이터를 돌려준다. 가져오지 못하면 가짜 값 대신 502 로 알린다."""
+        try:
+            data = fn()
+        except Exception as exc:
+            return self.fail(502, "데이터를 불러오지 못했어요 (%s)" % str(exc)[:80])
+        if data is None:
+            return self.fail(404, missing or "없는 항목이에요")
+        return self.send_json(data)
 
     def dispatch(self, routes):
         """Run the handler of the first matching route. Writes need the custom

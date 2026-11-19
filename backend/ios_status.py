@@ -11,25 +11,29 @@ MODULES = [("EvCore", "모델·서비스·계산"), ("EvNetworking", "API·RSS·
 
 # (이름, 설명, 근거 파일들(소스 기준), 테스트가 다루는지)
 FEATURES = [
-    ("홈", "다음 경기 카운트다운 · 최근 5경기 폼 · 시즌 평점 TOP", ["EvFeatures/HomeView.swift", "EvCore/Metrics.swift"], True),
-    ("일정", "월별 일정 · 예정/결과 필터", ["EvFeatures/FixturesView.swift"], False),
-    ("경기 상세", "통계 비교 · 피치 라인업 · 이벤트 타임라인", ["EvFeatures/MatchDetailView.swift", "EvFeatures/PitchLineupView.swift",
-                                                    "EvFeatures/EventTimeline.swift"], False),
-    ("스쿼드", "포지션별 선수 카드(등급형)", ["EvFeatures/SquadView.swift", "EvDesign/PlayerCard.swift"], False),
-    ("선수 상세", "국적·체격·강점·레이더·시즌 기록", ["EvFeatures/PlayerDetailView.swift", "EvDesign/RadarChart.swift"], True),
-    ("리그", "순위표 · 20개 구단 · 구단 상세", ["EvFeatures/LeagueView.swift", "EvFeatures/StandingsView.swift",
+    ("홈", "클럽 개요 · 다음 경기 카운트다운 · 순위 요약 · 공격 포인트 TOP", ["EvFeatures/HomeView.swift", "EvCore/Metrics.swift"], True),
+    ("일정", "월별 일정 표 · 예정/결과 탭", ["EvFeatures/FixturesView.swift"], False),
+    ("경기 상세", "통계 비교 · 포메이션 라인업 · 주요 장면", ["EvFeatures/MatchDetailView.swift", "EvFeatures/PitchLineupView.swift",
+                                                  "EvFeatures/EventTimeline.swift"], True),
+    ("스쿼드", "FM 식 선수 표(정렬 헤더)", ["EvFeatures/SquadView.swift", "EvFeatures/Shared.swift"], False),
+    ("선수 상세", "개요·기록·정보 탭 · 실스탯 기반 강점/레이더", ["EvFeatures/PlayerDetailView.swift", "EvDesign/RadarChart.swift"], True),
+    ("리그", "순위표 · 20개 구단 · 구단 로스터", ["EvFeatures/LeagueView.swift", "EvFeatures/StandingsView.swift",
                                        "EvFeatures/ClubDetailView.swift"], False),
     ("뉴스", "RSS 기사 + 온디바이스 한글 번역", ["EvFeatures/NewsView.swift", "EvNetworking/RSSNewsService.swift"], False),
     ("데이터 점검", "시즌·일정·스쿼드 정확성 리포트", ["EvFeatures/DataCheckView.swift"], True),
-    ("API-Football 연동", "경기·통계·라인업·선수·이벤트·순위·구단", ["EvNetworking/APIFootballService.swift", "EvNetworking/Mapping.swift",
-                                                   "EvNetworking/DTO.swift"], True),
+    ("ESPN 연동(기본)", "키 없이 일정·스쿼드·순위·경기 요약", ["EvNetworking/ESPNService.swift", "EvNetworking/ESPNMapping.swift",
+                                                 "EvNetworking/ESPNDTO.swift"], True),
+    ("API-Football 연동(선택)", "키가 있으면 사진·평점 포함 데이터로 전환", ["EvNetworking/APIFootballService.swift",
+                                                         "EvNetworking/Mapping.swift", "EvNetworking/DTO.swift"], True),
+    ("FM 디자인 시스템", "패널·밑줄 탭·속성 색 막대·포지션 배지", ["EvDesign/Theme.swift", "EvDesign/Components.swift"], False),
     ("캐시·이미지", "디스크 캐시(오프라인 대비) · 이미지 캐시", ["EvNetworking/DiskCache.swift", "EvNetworking/ImageCache.swift"], False),
 ]
 
 OPEN_ITEMS = [
     "Swift 코드는 이 서버에서 컴파일하지 못했습니다 (Swift 툴체인 없음). Mac 에서 `swift test` 가 첫 컴파일 검증입니다.",
     "실기기(iPhone 11) 실행·화면 확인은 아직 하지 않았습니다.",
-    "API-Football 키 발급 후 2026 시즌이 무료 플랜에서 조회되는지 확인이 필요합니다 (앱의 '데이터 점검' 화면).",
+    "데이터 출처는 ESPN 비공식 공개 API 입니다. 형식이 바뀌면 파싱이 깨질 수 있어 캐시·stale 폴백을 둡니다.",
+    "ESPN 은 선수 평점·사진·패스/태클 지표·창단연도·수용 인원을 주지 않아 표시하지 않습니다 (임의 값 없음).",
     "온디바이스 번역(Translation 프레임워크)은 실기기에서만 동작을 확인할 수 있습니다.",
 ]
 
