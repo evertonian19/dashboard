@@ -9,6 +9,10 @@ from urllib.parse import quote
 MARKETS_TTL = 60
 POINTS = 40
 SYMBOLS = [("^KS11", "코스피"), ("^KQ11", "코스닥"), ("^IXIC", "나스닥"), ("NVDA", "엔비디아")]
+# 우측 레일: 환율(원)과 금속 선물(USD). 엔은 단가가 작아 100엔 기준으로 환산한다.
+RAIL_SYMBOLS = [("KRW=X", "달러 (원)"), ("JPYKRW=X", "100엔 (원)"),
+                ("GC=F", "금 (oz)"), ("SI=F", "은 (oz)"), ("HG=F", "구리 (lb)")]
+SCALES = {"JPYKRW=X": 100}
 _cache = {}          # symbol -> (시각, 결과)
 _lock = threading.Lock()
 
@@ -20,7 +24,7 @@ def _fetch(symbol):
         return json.load(res)
 
 
-def parse_chart(symbol, name, payload):
+def parse_chart(symbol, name, payload, scale=1):
     """차트 응답에서 현재가·전일 대비·종가 배열을 뽑는다.
     chartPreviousClose 는 조회 범위 시작 전 종가라서 쓰지 않고, 마지막 두 거래일 종가로 계산한다."""
     result = payload["chart"]["result"][0]
@@ -43,6 +47,9 @@ def parse_chart(symbol, name, payload):
     else:
         prev = closes[-1]
         series = closes + [price]
+    if scale != 1:
+        price, prev = price * scale, prev * scale
+        series = [v * scale for v in series]
     change = price - prev
     return {
         "symbol": symbol, "name": name, "currency": meta.get("currency") or "",
@@ -60,7 +67,7 @@ def _one(symbol, name):
     if hit and now - hit[0] < MARKETS_TTL:
         return hit[1]
     try:
-        data = parse_chart(symbol, name, _fetch(symbol))
+        data = parse_chart(symbol, name, _fetch(symbol), SCALES.get(symbol, 1))
     except Exception:
         if hit:
             return dict(hit[1], stale=True)
@@ -70,7 +77,12 @@ def _one(symbol, name):
     return data
 
 
-def market_overview():
-    with ThreadPoolExecutor(max_workers=len(SYMBOLS)) as pool:
-        items = list(pool.map(lambda s: _one(*s), SYMBOLS))
+def market_overview(symbols=None):
+    symbols = symbols or SYMBOLS
+    with ThreadPoolExecutor(max_workers=len(symbols)) as pool:
+        items = list(pool.map(lambda s: _one(*s), symbols))
     return {"items": items}
+
+
+def rail_rates():
+    return market_overview(RAIL_SYMBOLS)

@@ -12,8 +12,10 @@ import './shell/theme.js';
 import './shell/search.js';
 import './shell/session.js';
 import { startMarkets } from './shell/markets.js';
+import { startRail } from './shell/rail.js';
 
 startMarkets();
+startRail();
 hooks.show = show;
 hooks.applyMenuNames = applyMenuNames;
 

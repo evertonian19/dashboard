@@ -20,7 +20,8 @@ from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, SESSION_TTL, _l
 from backend.config import PUBLIC
 from backend.db import db, now_iso, one_line
 from backend.mail import mail_overview
-from backend.markets import market_overview
+from backend.everton import everton_overview
+from backend.markets import market_overview, rail_rates
 from backend.oci import oci_status
 from backend.sanitize import MAX_JSON
 from backend.system import system_status
@@ -95,6 +96,8 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
                 "/api/claude-usage": lambda: self.send_json(claude_usage()),
                 "/api/oci": lambda: self.send_json(oci_status()),
                 "/api/markets": lambda: self.send_json(market_overview()),
+                "/api/rates": lambda: self.send_json(rail_rates()),
+                "/api/everton": lambda: self.send_json(everton_overview()),
                 "/api/system": lambda: self.send_json(system_status()),
                 "/api/files": lambda: self.list_files(q.get("kind", [""])[0]),
                 "/api/search": lambda: self.search(q.get("q", [""])[0]),

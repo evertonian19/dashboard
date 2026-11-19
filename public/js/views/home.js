@@ -416,17 +416,44 @@ async function loadSystem() {
   } catch (e) { fill('#system', errLine(e)); }
 }
 
+const spanText = (sec) => {
+  const d = Math.floor(sec / 86400), h = Math.floor(sec / 3600) % 24, m = Math.floor(sec / 60) % 60;
+  return d ? `${d}일 ${h}시간` : h ? `${h}시간 ${m}분` : `${m}분`;
+};
+
+export function ociDetail(o, now = Date.now()) {
+  const cost = o.cost.amount != null ? `${numFmt.format(o.cost.amount)} ${esc(o.cost.currency)}` : o.cost.error ? '확인 실패' : '확인 중…';
+  const dots = (o.recent || []).map((r) =>
+    `<i class="od ${r.ok ? 'ok' : 'no'}" title="${esc(r.at)}${r.spec ? ` · ${esc(r.spec)}` : ''}${r.reason ? ` · ${esc(r.reason)}` : ''}"></i>`).join('');
+  const specs = Object.entries(o.by_spec || {}).map(([k, n]) => `<span class="osp${k === o.current_spec ? ' on' : ''}">${esc(k)} <b>${n}</b></span>`).join('');
+  let status = '';
+  if (o.success) status = '생성 완료';
+  else if (!o.running) status = '루프가 멈춰 있어요';
+  else if (o.in_progress) status = `시도 중${o.current_since ? ` · ${fmtDateTime(o.current_since)}부터` : ''}`;
+  else if (o.next_at) {
+    const left = Math.max(0, Math.round((new Date(o.next_at).getTime() - now) / 1000));
+    status = left > 0 ? `다음 시도까지 ${left}초` : '곧 다음 시도';
+  }
+  return `
+      <p class="card-value">${o.attempt != null ? `${numFmt.format(o.attempt)}번째 시도` : '—'}</p>
+      <p class="card-note">${esc(o.last_result || '')}${o.last_at ? ` · ${fmtDateTime(o.last_at)}` : ''}</p>
+      ${dots ? `<div class="odots" aria-label="최근 시도 결과">${dots}</div>` : ''}
+      <dl class="kv"><dt>지금 상태</dt><dd>${esc(status || '—')}</dd></dl>
+      ${o.current_spec ? `<dl class="kv"><dt>시도 사양</dt><dd>${esc(o.current_spec.replace('/', ' OCPU / '))} GB</dd></dl>` : ''}
+      ${specs ? `<div class="ospecs">${specs}</div>` : ''}
+      ${o.reason && !o.success ? `<dl class="kv"><dt>마지막 실패 사유</dt><dd>${esc(o.reason)}</dd></dl>` : ''}
+      <dl class="kv"><dt>누적 시도</dt><dd>${numFmt.format(o.total_attempts ?? 0)}회${o.today_attempts ? ` (오늘 ${numFmt.format(o.today_attempts)})` : ''}</dd></dl>
+      ${o.elapsed != null ? `<dl class="kv"><dt>시도 시작 후</dt><dd>${spanText(o.elapsed)}${o.interval ? ` · ${o.interval}초 간격` : ''}</dd></dl>` : ''}
+      <dl class="kv"><dt>이번 달 과금</dt><dd>${cost}</dd></dl>`;
+}
+
 async function loadOci() {
   try {
     const o = await api('/oci');
     if (!$('#oci')) return;
     if (!o.available) { fill('#oci', '<p class="empty-inline">이 서버에는 재시도 기록이 없어요.</p>'); return; }
     fill('#ociChip', o.success ? '<span class="chip add">성공</span>' : o.running ? '<span class="chip add">재시도 중</span>' : '<span class="chip del">멈춤</span>');
-    const cost = o.cost.amount != null ? `${numFmt.format(o.cost.amount)} ${esc(o.cost.currency)}` : o.cost.error ? '확인 실패' : '확인 중…';
-    fill('#oci', `
-      <p class="card-value">${o.attempt != null ? `${numFmt.format(o.attempt)}번째 시도` : '—'}</p>
-      <p class="card-note">${esc(o.last_result || '')}${o.last_at ? ` · ${fmtDateTime(o.last_at)}` : ''}</p>
-      <dl class="kv"><dt>이번 달 과금</dt><dd>${cost}</dd></dl>`);
+    fill('#oci', ociDetail(o));
   } catch (e) { fill('#oci', errLine(e)); }
 }
 

@@ -1,0 +1,44 @@
+/* 우측 레일: 에버턴 다음 경기 · 환율 · 금속. 넓은 화면(본문 바깥 여백이 충분할 때)에서만 보입니다 */
+:root { --rail-w: 228px; }
+.rail { display: none; }
+@media (min-width: 1760px) {
+  .rail { display: flex; flex-direction: column; gap: 10px; position: fixed; z-index: 3; right: 14px; width: var(--rail-w);
+    top: calc(var(--topbar-h) + 40px + var(--band-h) + 12px); bottom: calc(var(--status-h) + 12px); overflow-y: auto; scrollbar-width: none; }
+  .rail::-webkit-scrollbar { display: none; }
+}
+.rail-card { display: grid; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.rail-title { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--ink-3); }
+.rail-title + .rail-mk { margin-bottom: 4px; }
+.rail-empty { margin: 0; font-size: 12px; color: var(--ink-3); }
+.live { padding: 1px 5px; border-radius: 4px; background: var(--mk-up); color: #fff; font-size: 9px; letter-spacing: .08em; }
+
+.match { display: flex; align-items: center; gap: 10px; }
+.match img { flex: none; object-fit: contain; }
+.match div { display: grid; min-width: 0; line-height: 1.25; }
+.match b { font-size: 15px; font-weight: 800; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match span { font-size: 11px; color: var(--ink-3); }
+.rail-score { margin-left: auto; font-size: 18px; font-variant-numeric: tabular-nums; }
+.when { margin: 0; font-size: 12px; font-weight: 600; color: var(--ink-2, var(--ink)); }
+.cd { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -.01em; color: var(--blue-glow, var(--blue)); font-variant-numeric: tabular-nums; }
+.form { display: flex; gap: 4px; margin-top: 2px; }
+.fm { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; font-style: normal; font-size: 11px; font-weight: 800; color: #fff; background: var(--mk-flat); }
+.fm.W { background: #2FA56B; }
+.fm.L { background: var(--mk-up); }
+
+/* 레일 안의 시세 칸: 한 줄에 이름·가격·등락, 위에 작은 그래프 */
+.rail-mk { display: grid; }
+.rail-mk .mk { display: grid; grid-template-columns: 1fr 64px; align-items: center; gap: 8px; padding: 7px 0; border-right: 0; border-top: 1px solid var(--line); }
+.rail-mk .mk:first-child { border-top: 0; }
+.rail-mk .mk-info { grid-column: 1; grid-row: 1; justify-items: start; text-align: left; }
+.rail-mk .mk-graph { grid-column: 2; grid-row: 1; height: 28px; min-width: 0; max-width: none; }
+.rail-mk .mk-chg { font-size: 10.5px; }
+
+/* Oracle VM 카드(홈): 최근 시도 점과 사양별 횟수 */
+.odots { display: flex; gap: 4px; margin: 10px 0 2px; }
+.od { width: 14px; height: 14px; border-radius: 4px; background: var(--mk-flat); }
+.od.ok { background: #2FA56B; }
+.od.no { background: color-mix(in srgb, var(--mk-up) 70%, transparent); }
+.ospecs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.osp { padding: 2px 8px; border-radius: 999px; background: var(--paper-deep); font-size: 12px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.osp.on { background: var(--blue-soft); color: var(--accent-text); }
+.osp b { color: var(--ink); }
