@@ -77,9 +77,61 @@ const FX = `
 <i class="fx-spark s1"></i><i class="fx-spark s2"></i><i class="fx-spark s3"></i><i class="fx-spark s4"></i>`;
 
 const COOLDOWN = 1500;
+const IMG = 'assets/mascot/gintoki.png';    // 로컬 전용 실제 이미지(저장소에는 포함하지 않음). 없으면 위의 SVG 로 대체한다.
 let busy = false;
 
-function mount() {
+/** 시전: 효과 레이어를 anchor 위치에 놓고 클래스를 붙였다 뗀다. 모션 자체는 css/mascot.css 의 키프레임. */
+function makeCaster(box, fx, anchor, scale = 1) {
+  return () => {
+    if (busy) return;
+    busy = true;
+    const [x, y] = anchor();
+    fx.style.setProperty('--x', `${Math.round(x)}px`);
+    fx.style.setProperty('--y', `${Math.round(y)}px`);
+    fx.style.setProperty('--fxs', String(scale));
+    fx.classList.remove('go');
+    box.classList.remove('is-casting');
+    void box.offsetWidth;                     // 애니메이션을 처음부터 다시 시작
+    box.classList.add('is-casting');
+    fx.classList.add('go');
+    setTimeout(() => { box.classList.remove('is-casting'); fx.classList.remove('go'); }, 1100);
+    setTimeout(() => { busy = false; }, COOLDOWN);
+  };
+}
+
+function makeFx() {
+  const fx = document.createElement('div');
+  fx.className = 'mascot-fx';
+  fx.setAttribute('aria-hidden', 'true');
+  fx.innerHTML = FX;
+  document.body.appendChild(fx);
+  return fx;
+}
+
+function bind(trigger, cast) {
+  trigger.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') cast(); });
+  trigger.addEventListener('click', cast);
+  trigger.addEventListener('focus', () => { if (trigger.matches(':focus-visible')) cast(); });
+}
+
+/** 이미지 모드: 화면 왼쪽 아래에 크게 얹는다. 투명 영역은 클릭을 통과시키고, 사이드바 폭만큼의 띠(.mi-hit)만 반응한다. */
+function mountImage() {
+  const box = document.createElement('div');
+  box.className = 'mascot-img';
+  box.innerHTML = `<div class="mi-wrap"><img class="mi-ghost g2" src="${IMG}" alt="" aria-hidden="true"><img class="mi-ghost g1" src="${IMG}" alt="" aria-hidden="true">
+    <img class="mi-sprite" src="${IMG}" alt="" draggable="false"><i class="mi-shadow"></i>
+    <button class="mi-hit" type="button" aria-label="긴토키 마스코트 — 올리거나 누르면 목검 베기"></button></div>`;
+  document.body.appendChild(box);
+  const wrap = box.querySelector('.mi-wrap');
+  const cast = makeCaster(box, makeFx(), () => {
+    const r = wrap.getBoundingClientRect();
+    return [r.left + r.width * 0.8, r.top + r.height * 0.46];
+  }, 1.5);
+  bind(box.querySelector('.mi-hit'), cast);
+}
+
+/** SVG 모드(이미지가 없을 때): 사이드바 하단에 작게. */
+function mountSvg() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar || sidebar.querySelector('.mascot')) return;
   const btn = document.createElement('button');
@@ -87,32 +139,15 @@ function mount() {
   btn.className = 'mascot';
   btn.setAttribute('aria-label', '긴토키 마스코트 — 올리거나 누르면 목검 베기');
   btn.innerHTML = SVG;
-  const foot = sidebar.querySelector('.sidebar-foot');
-  sidebar.insertBefore(btn, foot);
-
-  const fx = document.createElement('div');
-  fx.className = 'mascot-fx';
-  fx.setAttribute('aria-hidden', 'true');
-  fx.innerHTML = FX;
-  document.body.appendChild(fx);
-
-  const cast = () => {
-    if (busy) return;
-    busy = true;
+  sidebar.insertBefore(btn, sidebar.querySelector('.sidebar-foot'));
+  const cast = makeCaster(btn, makeFx(), () => {
     const r = btn.getBoundingClientRect();
-    fx.style.setProperty('--x', `${Math.round(r.left + r.width / 2)}px`);
-    fx.style.setProperty('--y', `${Math.round(r.top + r.height * 0.42)}px`);
-    fx.classList.remove('go');
-    btn.classList.remove('is-casting');
-    void btn.offsetWidth;                     // 애니메이션을 처음부터 다시 시작
-    btn.classList.add('is-casting');
-    fx.classList.add('go');
-    setTimeout(() => { btn.classList.remove('is-casting'); fx.classList.remove('go'); }, 1100);
-    setTimeout(() => { busy = false; }, COOLDOWN);
-  };
-  btn.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') cast(); });
-  btn.addEventListener('click', cast);
-  btn.addEventListener('focus', () => { if (btn.matches(':focus-visible')) cast(); });
+    return [r.left + r.width / 2, r.top + r.height * 0.42];
+  });
+  bind(btn, cast);
 }
 
-mount();
+const probe = new Image();
+probe.onload = mountImage;
+probe.onerror = mountSvg;
+probe.src = IMG;
