@@ -294,6 +294,16 @@ def diagnostics():
         report["checks"].append({"title": "선수 사진", "level": "ok" if len(with_photo) == len(sq) else "warning",
             "detail": "%d/%d명 (%s). 없는 선수는 이니셜로 표시합니다. 공식 사진은 개인 로컬 열람용입니다." % (
                 len(with_photo), len(sq), " · ".join("%s %d" % (names.get(k, k), v) for k, v in by.items()) or "없음")})
+        try:
+            pl = plphotos.discover_clubs()
+            unmapped = [c["club"]["name"] for c in espn.clubs()
+                        if plphotos.club_id_for([c["club"]["name"], c["club"].get("shortName")], pl) is None]
+            total = len(espn.clubs())
+            report["checks"].append({"title": "타 구단 사진 지원", "level": "ok" if not unmapped else "warning",
+                "detail": "%d/%d개 구단 연결%s" % (total - len(unmapped), total,
+                    (" · 아직 못 찾은 구단: " + ", ".join(unmapped) + " (탐색 중이거나 PL 사이트 요청 제한 — 잠시 후 다시)") if unmapped else "")})
+        except Exception:
+            pass
         lvl = "ok" if not audit["disputed"] else "warning"
         names = ", ".join(d["name"] for d in audit["disputed"])
         report["checks"].append({"title": "선수 신상 교차 검증", "level": lvl,

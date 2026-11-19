@@ -184,7 +184,7 @@ function playerView(id) {
       ? [['출전', s.appearances], ['교체 투입', s.subIns], ['선방', s.saves], ['실점', s.conceded], ['피유효슈팅', s.shotsFaced], ['경고', s.yellow], ['퇴장', s.red], ['파울', s.foulsCommitted]]
       : [['출전', s.appearances], ['교체 투입', s.subIns], ['골', s.goals], ['도움', s.assists], ['슈팅', s.shots], ['유효슈팅', s.shotsOnTarget], ['파울 획득', s.foulsSuffered], ['파울', s.foulsCommitted],
         ['오프사이드', s.offsides], ['경고', s.yellow], ['퇴장', s.red], ['자책골', s.ownGoals]];
-    body = panel('시즌 기록', rows.length ? `<table class="fm-t fm-kv">${rows.map(([l, v]) => `<tr><td class="tl">${l}</td><td class="fm-hl">${v}</td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr>`).join('')}</table>` : '<p class="p-dim">시즌 기록이 없어요.</p>');
+    body = panel('시즌 기록', rows.length ? `<table class="fm-t fm-kv">${rows.map(([l, v]) => `<tr><td class="tl">${l}</td><td class="fm-hl">${v}</td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr>`).join('')}</table>` : '<p class="p-dim">ESPN 에 이 선수의 시즌 기록이 없어요(출전 전이거나 등록 직후).</p>') + `<p class="p-note">출처: ESPN 시즌 누적 기록(비공식 API). 경기 이벤트와의 대조 검증은 에버턴 선수만 수행합니다.</p>`;
   } else if (sub === 'info') {
     const kv = (k, v, note = '') => `<tr><td class="tl">${k}</td><td>${esc(v ?? '-')}${note}</td></tr>`;
     const dis = p.bioDisputed || {};

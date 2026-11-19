@@ -275,6 +275,27 @@ class PLPhotoTests(unittest.TestCase):
         self.assertEqual(out[1]["photoURL"], "keep.jpg")                  # 수동 지정은 그대로
 
 
+class PLClubTests(unittest.TestCase):
+    CLUBS = {1: "Manchester United", 11: "Everton", 36: "Brighton and Hove Albion", 39: "Wolverhampton Wanderers",
+             91: "AFC Bournemouth", 6: "Tottenham Hotspur", 15: "Nottingham Forest"}
+
+    def test_title_with_newlines(self):
+        self.assertEqual(plphotos.club_name("<html><title>\n  Manchester  United Squad Information & Player Stats | PL</title>"), "Manchester United")
+        self.assertIsNone(plphotos.club_name("<title>Not found</title>"))
+
+    def test_espn_names_map_to_pl_ids(self):
+        f = lambda *n: plphotos.club_id_for(n, self.CLUBS)
+        self.assertEqual(f("Brighton & Hove Albion", "Brighton"), 36)
+        self.assertEqual(f("Wolverhampton Wanderers", "Wolves"), 39)
+        self.assertEqual(f("AFC Bournemouth", "Bournemouth"), 91)
+        self.assertEqual(f("Manchester United", "Man Utd"), 1)
+        self.assertEqual(f("Nottingham Forest"), 15)
+
+    def test_unknown_or_ambiguous_club_is_not_mapped(self):
+        self.assertIsNone(plphotos.club_id_for(["Hull City"], self.CLUBS))
+        self.assertIsNone(plphotos.club_id_for(["Everton"], {**self.CLUBS, 99: "Everton FC"}))   # 같은 이름이 둘이면 거부
+
+
 class StatusTests(unittest.TestCase):
     def test_status_has_core_numbers(self):
         s = ios_status()
