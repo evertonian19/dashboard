@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from backend import espn, plphotos, wikidata
+from backend import espn, photocache, plphotos, wikidata
 
 TEAM_ID = espn.TEAM_ID
 SEASON = 2026
@@ -167,13 +167,18 @@ def squad(club_id=TEAM_ID):
     data = espn.roster(club_id)
     # 신상(생년월일·키·국적)은 ESPN 이 동명이인과 섞이는 경우가 있어 Wikidata·수동 보정으로 교차 검증한다.
     players = wikidata.enrich(data["players"], club_id, _club_name(club_id))
+    # 사진: 후보를 모아(수동 지정 > PL 공식 > Commons) photocache 가 실제로 내려받아 검증·저장한 것만 로컬 경로로 내보낸다.
+    overrides = wikidata.load_overrides()
+    manual = {int(k) for k, v in overrides.items() if "photo" in v}
+    cands = {}
     for p in players:
+        lst = []
         if p.get("photoURL"):
-            p["photoSource"] = "commons"
-    # 사진 우선순위: 수동 지정 > 프리미어리그 공식 > Commons > 이니셜 (공식 사진은 개인 로컬 열람용, PL_PHOTOS=0 으로 끈다)
-    manual = {int(k) for k, v in wikidata.load_overrides().items() if v.get("photo")} | \
-             {int(k) for k, v in wikidata.load_overrides().items() if "photo" in v and v["photo"] is None}
-    data = dict(data, players=plphotos.attach(players, club_id, keep=manual))
+            lst.append({"url": p["photoURL"], "source": "manual" if p["id"] in manual else "commons", "credit": p.get("photoCredit")})
+        cands[p["id"]] = lst
+    for pid, extra in plphotos.candidates(players, club_id, keep=manual).items():
+        cands[pid] = extra + cands.get(pid, [])
+    data = dict(data, players=photocache.apply(players, cands))
     games = _team_games() if club_id == TEAM_ID else None
     players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games),
                     contribution=(p["stats"]["goals"] + p["stats"]["assists"]) if p["stats"] else 0) for p in data["players"]]
@@ -336,3 +341,21 @@ def overview():
     return {"teamID": TEAM_ID, "season": SEASON, "seasonName": espn.season_label(), "next": next_match(all_matches),
             "recent": [dict(m, result=match_result(m)) for m in recent], "form": [match_result(m) for m in recent],
             "standing": me, "source": "ESPN"}
+
+
+def warm(passes=4, pause=15, rest=600):
+    """서버 시작 뒤 20개 구단 스쿼드를 천천히 한 번씩 불러, 신상 교차 검증·사진 후보 수집·사진 다운로드를 미리 채운다.
+    요청은 직렬·간격을 두어 외부 사이트(Wikidata·Commons·PL)에 부담을 주지 않는다. 몇 번 반복해 캐시를 이어서 채운다."""
+    for n in range(passes):
+        try:
+            ids = [c["club"]["id"] for c in espn.clubs()]
+        except Exception:
+            ids = []
+        for cid in ids:
+            try:
+                squad(cid)
+            except Exception:
+                pass
+            time.sleep(pause)
+        if n < passes - 1:
+            time.sleep(rest)

@@ -20,7 +20,7 @@ from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, SESSION_TTL, _l
 from backend.config import PUBLIC
 from backend.db import db, now_iso, one_line
 from backend.mail import mail_overview
-from backend import ios_app
+from backend import ios_app, photocache
 from backend.ios_status import ios_status
 from backend.everton import everton_overview
 from backend.markets import market_overview, rail_rates
@@ -117,6 +117,12 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
             m = re.fullmatch(r"/api/posts/([0-9a-f]{12})", path)
             if m:
                 return self.get_post(m.group(1))
+            m = re.fullmatch(r"/api/ios/photo/(\d+)", path)
+            if m:
+                found = photocache.path_for(int(m.group(1)))
+                if not found:
+                    return self.fail(404, "사진이 없어요")
+                return self.send_path(found[0], found[1], {"Cache-Control": "private, max-age=86400"})
             m = re.fullmatch(r"/api/ios/match/(\d+)", path)
             if m:
                 return self.ios_json(lambda: ios_app.match_detail(int(m.group(1))), missing="없는 경기예요")

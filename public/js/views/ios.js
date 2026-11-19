@@ -50,7 +50,7 @@ async function loadAll() {
   const [overview, matches, squad, clubs, standings, news, diag] = await Promise.all(
     ['/ios/overview', '/ios/matches', '/ios/squad', '/ios/clubs', '/ios/standings', '/ios/news', '/ios/diagnostics'].map(get));
   Object.assign(model, { overview, matches, squad, clubs, standings, news, diag });
-  if (squad && !squad.__error) model.rosters[TEAM] = squad;
+  if (squad && !squad.__error) { model.rosters[TEAM] = squad; watchPhotos(TEAM); }
 }
 const bad = (x) => !x || x.__error;
 const failMsg = (x) => (x && x.__error) || '불러오지 못했어요';
@@ -267,9 +267,23 @@ function renderPhone() {
   nav.keepScroll = false;
 }
 
+// 사진은 백그라운드에서 받아 오므로, 대기 중인 선수가 있으면 몇 번 다시 불러와 화면에 반영한다.
+const photoTries = {};
+function watchPhotos(id) {
+  const r = model.rosters[id];
+  if (!r || r.__error || !(r.players || []).some((p) => p.photoPending) || (photoTries[id] || 0) >= 8) return;
+  photoTries[id] = (photoTries[id] || 0) + 1;
+  setTimeout(async () => {
+    const fresh = await api(`/ios/squad?club=${id}`).catch(() => null);
+    if (fresh && !fresh.__error) { model.rosters[id] = fresh; renderPhone(); }
+    watchPhotos(id);
+  }, 8000);
+}
+
 async function ensureRoster(id) {
   if (model.rosters[id] && !model.rosters[id].__error) return;
   model.rosters[id] = await api(`/ios/squad?club=${id}`).catch((e) => ({ __error: e.message || '스쿼드를 불러오지 못했어요' }));
+  watchPhotos(id);
   if (current().view === 'club' && current().id === id) renderPhone();
 }
 

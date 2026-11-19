@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from backend import espn, plphotos, wikidata
+from backend import espn, photocache, plphotos, wikidata
 from backend import ios_app as app
 from backend.ios_status import ios_status
 
@@ -262,17 +262,13 @@ class PLPhotoTests(unittest.TestCase):
         self.assertIsNone(plphotos.match("Sam Smith", self.entries))       # 성이 같은 선수가 둘
         self.assertIsNone(plphotos.match("Nobody Here", self.entries))
 
-    def test_override_photo_is_kept_and_others_replaced(self):
-        orig = plphotos.squad_entries, plphotos._image_ok
-        plphotos.squad_entries, plphotos._image_ok = (lambda team: self.entries), (lambda pid: True)
-        try:
-            ps = [{"id": 1, "name": "Jordan Pickford", "photoURL": "commons.jpg"}, {"id": 2, "name": "Merlin Röhl", "photoURL": "keep.jpg"}]
-            out = plphotos.attach(ps, 368, keep={2})
-        finally:
-            plphotos.squad_entries, plphotos._image_ok = orig
-        self.assertTrue(out[0]["photoURL"].endswith("/111234.png"))       # Commons 보다 PL 공식이 우선
-        self.assertEqual(out[0]["photoSource"], "premierleague")
-        self.assertEqual(out[1]["photoURL"], "keep.jpg")                  # 수동 지정은 그대로
+    def test_candidates_exclude_manual_and_order_hi_before_lo(self):
+        ps = [{"id": 1, "name": "Jordan Pickford"}, {"id": 2, "name": "Merlin Röhl"}]
+        out = plphotos.candidates_for(ps, self.entries, keep={2})
+        self.assertEqual(list(out), [1])
+        self.assertTrue(out[1][0]["url"].endswith("p111234.png"))          # 250x250 먼저
+        self.assertTrue(out[1][1]["url"].endswith("/111234.png"))          # 실패 시 110x140
+        self.assertEqual(out[1][0]["source"], "premierleague")
 
 
 class PLClubTests(unittest.TestCase):
@@ -294,6 +290,60 @@ class PLClubTests(unittest.TestCase):
     def test_unknown_or_ambiguous_club_is_not_mapped(self):
         self.assertIsNone(plphotos.club_id_for(["Hull City"], self.CLUBS))
         self.assertIsNone(plphotos.club_id_for(["Everton"], {**self.CLUBS, 99: "Everton FC"}))   # 같은 이름이 둘이면 거부
+
+
+class PhotoCacheTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.orig = (photocache.DIR, photocache.INDEX, photocache._download, photocache.schedule)
+        photocache.DIR = self.tmp
+        photocache.INDEX = self.tmp + "/index.json"
+        photocache._neg.clear()
+
+    def tearDown(self):
+        photocache.DIR, photocache.INDEX, photocache._download, photocache.schedule = self.orig
+
+    PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 9000
+
+    def test_sniff_rejects_small_html_and_placeholders(self):
+        self.assertEqual(photocache.sniff(self.PNG), "png")
+        self.assertEqual(photocache.sniff(b"\xff\xd8\xff" + b"x" * 9000), "jpg")
+        self.assertIsNone(photocache.sniff(b"<html>429 Too Many Requests</html>" + b" " * 9000))
+        self.assertIsNone(photocache.sniff(b"\x89PNG\r\n\x1a\n" + b"x" * 100))      # 6KB 자리표시 이미지 같은 작은 파일
+
+    def test_fill_takes_first_valid_candidate_and_serves_locally(self):
+        calls = []
+
+        def fake(url):
+            calls.append(url)
+            return {"bad": b"<html>", "good": self.PNG}[url]
+        photocache._download = fake
+        cands = [{"url": "bad", "source": "premierleague", "credit": None}, {"url": "good", "source": "commons", "credit": {"author": "A"}}]
+        self.assertTrue(photocache.fill(7, cands))
+        self.assertEqual(calls, ["bad", "good"])
+        self.assertEqual(photocache.path_for(7)[1], "image/png")
+        out = photocache.apply([{"id": 7, "name": "X"}], {7: cands[1:]})[0]
+        self.assertTrue(out["photoURL"].startswith("/api/ios/photo/7"))
+        self.assertEqual(out["photoSource"], "commons")
+        self.assertEqual(out["photoCredit"], {"author": "A"})
+
+    def test_all_candidates_fail_means_no_photo_and_negative_cache(self):
+        photocache._download = lambda url: b"nope"
+        self.assertFalse(photocache.fill(8, [{"url": "u", "source": "commons", "credit": None}]))
+        scheduled = []
+        photocache.schedule = lambda pid, c: scheduled.append(pid)
+        out = photocache.apply([{"id": 8, "name": "Y"}], {8: [{"url": "u", "source": "commons", "credit": None}]})[0]
+        self.assertIsNone(out["photoURL"])
+        self.assertFalse(out["photoPending"])                                # 최근 실패 → 대기 표시 안 함
+
+    def test_better_source_upgrades_cached_photo(self):
+        photocache._download = lambda url: self.PNG
+        photocache.fill(9, [{"url": "c", "source": "commons", "credit": None}])
+        scheduled = []
+        photocache.schedule = lambda pid, c: scheduled.append((pid, [x["source"] for x in c]))
+        photocache.apply([{"id": 9, "name": "Z"}], {9: [{"url": "p", "source": "premierleague", "credit": None}, {"url": "c", "source": "commons", "credit": None}]})
+        self.assertEqual(scheduled, [(9, ["premierleague"])])
 
 
 class StatusTests(unittest.TestCase):

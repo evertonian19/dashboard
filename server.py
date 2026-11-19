@@ -17,6 +17,7 @@ import sys
 import threading
 from http.server import ThreadingHTTPServer
 
+from backend import ios_app
 from backend.api.handler import Handler
 from backend.auth import set_login
 from backend.bootstrap import init
@@ -37,6 +38,7 @@ if __name__ == "__main__":
     init()
     threading.Thread(target=mail_poller, daemon=True).start()
     threading.Thread(target=housekeeping, daemon=True).start()
+    threading.Thread(target=ios_app.warm, daemon=True).start()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     httpd.daemon_threads = True
     print(f"dashboard: http://{HOST}:{PORT}  (data: {DATA})", flush=True)

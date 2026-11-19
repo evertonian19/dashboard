@@ -1,8 +1,11 @@
-"""프리미어리그 공식 사이트의 선수 사진(개인 로컬 열람용).
+"""프리미어리그 공식 사이트의 선수 사진 후보(개인 로컬 열람용).
 
-비공개 API 는 쓰지 않는다. 브라우저가 받는 것과 같은 공개 선수단 HTML 페이지에서 선수 ID 를 읽고,
-사진은 공개 이미지 서버(110x140)에서 그대로 불러온다. 배포용 앱·공개 서비스에는 쓰지 말 것:
-PL_PHOTOS=0 환경변수로 끌 수 있다. 실패하면 호출한 쪽이 Commons 사진·이니셜로 폴백한다.
+비공개 API 는 쓰지 않는다. 브라우저가 받는 것과 같은 공개 선수단 HTML 에서 선수 ID(= Opta id)를 읽고,
+사진은 공개 이미지 서버에서 가져온다. 이 모듈은 '후보 URL'만 만들고, 실제 다운로드·검증·저장은 photocache 가 한다.
+
+PL 사이트는 요청이 몰리면 429 를 준다. 그래서 선수단 HTML 은 디스크에 오래 보관하고(만료돼도 실패하면 계속 사용),
+네트워크 요청은 응답 경로가 아니라 백그라운드 워커 하나가 5초 간격으로만 보내며, 429 가 오면 30분 쉰다.
+PL_PHOTOS=0 환경변수로 끌 수 있다.
 """
 import json
 import os
@@ -11,27 +14,37 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 
 ENABLED = os.environ.get("PL_PHOTOS", "1") != "0"
 UA = "Mozilla/5.0 (compatible; fm-dashboard/1.0)"
 SITE = "https://www.premierleague.com"
-IMG = "https://resources.premierleague.com/premierleague25/photos/players/110x140/%s.png"
+IMG_HI = "https://resources.premierleague.com/premierleague/photos/players/250x250/p%s.png"
+IMG_LO = "https://resources.premierleague.com/premierleague25/photos/players/110x140/%s.png"
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 CLUB_FILE = os.path.join(DATA, "pl_clubs.json")
+SQUAD_FILE = os.path.join(DATA, "pl_squads.json")
 CLUB_TTL = 14 * 86400
+SQUAD_TTL = 7 * 86400
 MAX_CLUB_ID = 80
+SPACING = 5.0
+COOLDOWN = 1800
 # 이름 정규화 뒤 같은 구단으로 보는 별칭 (ESPN 표기 ↔ PL 표기)
 ALIASES = {"wolves": "wolverhampton wanderers", "spurs": "tottenham hotspur", "brighton": "brighton and hove albion",
            "man utd": "manchester united", "man city": "manchester city", "newcastle": "newcastle united",
            "west ham": "west ham united", "leeds": "leeds united", "forest": "nottingham forest"}
 TITLE = re.compile(r"<title>\s*(.*?)\s+Squad Information", re.S)
-TTL = 24 * 3600
-_cache = {}
-_lock = threading.Lock()
 LINK = re.compile(r"/en/players/(\d+)/([a-z0-9-]+)/overview")
+# 직접 확인한 PL 구단 id(= Opta id). 나머지는 아래 PRIORITY 를 title 로 검증한 뒤에만 채택한다.
+SEED = {1: "Manchester United", 2: "Leeds United", 3: "Arsenal", 4: "Newcastle United", 6: "Tottenham Hotspur",
+        7: "Aston Villa", 11: "Everton", 14: "Liverpool", 31: "Crystal Palace", 36: "Brighton and Hove Albion",
+        39: "Wolverhampton Wanderers"}
+PRIORITY = [8, 43, 34, 94, 91, 17, 56, 21, 90, 20, 13, 40]      # 추정 후보: 요청해서 title 이 맞을 때만 매핑에 들어간다
+
+_lock = threading.Lock()
+_state = {"cooldown": 0.0, "last": 0.0, "worker": None, "want": set()}
 
 
+# ---------------------------------------------------------------- 파싱·매칭 (순수 함수)
 def parse_squad(html):
     """선수단 HTML → [{'id': '111234', 'slug': 'jordan-pickford'}] (등장 순서, 중복 제거)."""
     seen, out = set(), []
@@ -55,19 +68,12 @@ def match(name, entries):
         return hits[0]
     if hits:
         return None
-    # 성 + 이름 첫 글자가 유일하게 맞을 때만 허용
     parts = [p for p in re.split(r"[\s-]+", name.strip()) if p]
     if len(parts) < 2:
         return None
     last, first = key(parts[-1]), key(parts[0])[:1]
     cand = [e for e in entries if key(e["slug"].split("-")[-1]) == last and key(e["slug"])[:1] == first]
     return cand[0] if len(cand) == 1 else None
-
-
-def _fetch(url, binary=False):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=12) as res:
-        return res.read(), res.headers.get("Content-Type", "")
 
 
 def club_name(html):
@@ -83,75 +89,146 @@ def norm_club(name):
     return ALIASES.get(t, t)
 
 
-SEED = {1: "Manchester United", 2: "Leeds United", 3: "Arsenal", 4: "Newcastle United", 6: "Tottenham Hotspur",
-        7: "Aston Villa", 11: "Everton", 14: "Liverpool", 31: "Crystal Palace", 36: "Brighton and Hove Albion",
-        39: "Wolverhampton Wanderers"}      # 직접 확인한 값. 나머지는 탐색으로 채운다
-SPACING = 1.2
-_scan = {"running": False, "cooldown": 0.0}
-
-
-def _load_clubs():
-    try:
-        with open(CLUB_FILE, encoding="utf-8") as f:
-            raw = json.load(f)
-        return {int(k): v for k, v in raw.get("clubs", {}).items()}, raw.get("next", 1), raw.get("at", 0)
-    except Exception:
-        return {}, 1, 0
-
-
-def _save_clubs(clubs, nxt, at):
-    try:
-        os.makedirs(DATA, exist_ok=True)
-        with open(CLUB_FILE, "w", encoding="utf-8") as f:
-            json.dump({"clubs": clubs, "next": nxt, "at": at}, f, ensure_ascii=False)
-    except Exception:
-        pass
-
-
-def _scan_clubs():
-    """id 1..80 을 직렬로 훑어 구단명을 모은다. 429 가 오면 즉시 멈추고 진행 상황을 저장해 다음에 이어서 한다."""
-    try:
-        clubs, nxt, _ = _load_clubs()
-        if nxt > MAX_CLUB_ID:
-            nxt, clubs = 1, dict(clubs)
-        while nxt <= MAX_CLUB_ID:
-            try:
-                body, _ = _fetch("%s/en/clubs/%d/x/squad" % (SITE, nxt))
-                name = club_name(body.decode("utf-8", "replace"))
-                if name:
-                    clubs[nxt] = name
-            except urllib.error.HTTPError as e:
-                if e.code == 429:
-                    _scan["cooldown"] = time.time() + 600
-                    _save_clubs(clubs, nxt, 0)
-                    return
-            except Exception:
-                pass
-            nxt += 1
-            _save_clubs(clubs, nxt, 0)
-            time.sleep(SPACING)
-        _save_clubs(clubs, nxt, time.time())
-    finally:
-        _scan["running"] = False
-
-
-def discover_clubs():
-    """{PL 구단 id: 구단명}. 즉시 돌려주고(시드+저장된 탐색 결과), 오래됐거나 미완이면 백그라운드에서 이어서 탐색한다."""
-    clubs, nxt, at = _load_clubs()
-    merged = dict(SEED)
-    merged.update(clubs)
-    fresh = at and time.time() - at < CLUB_TTL
-    if not fresh and not _scan["running"] and time.time() >= _scan["cooldown"]:
-        _scan["running"] = True
-        threading.Thread(target=_scan_clubs, daemon=True).start()
-    return merged
-
-
 def club_id_for(names, clubs):
     """ESPN 구단명(들)과 정규화 이름이 정확히 일치하는 PL 구단 id (유일할 때만)."""
     want = {norm_club(n) for n in names if n}
     hits = [cid for cid, name in clubs.items() if norm_club(name) in want]
     return hits[0] if len(hits) == 1 else None
+
+
+def candidates_for(players, entries, keep=()):
+    """{선수 id: [PL 사진 후보(고해상도, 저해상도)]}. keep(수동 지정) 선수는 제외."""
+    out = {}
+    for p in players:
+        if p["id"] in keep:
+            continue
+        e = match(p["name"], entries)
+        if not e:
+            continue
+        credit = {"author": "Premier League", "license": "공식 사이트 이미지(개인 열람용)", "licenseURL": None,
+                  "pageURL": "%s/en/players/%s/%s/overview" % (SITE, e["id"], e["slug"])}
+        out[p["id"]] = [{"url": IMG_HI % e["id"], "source": "premierleague", "credit": credit},
+                        {"url": IMG_LO % e["id"], "source": "premierleague", "credit": credit}]
+    return out
+
+
+# ---------------------------------------------------------------- 디스크 저장
+def _read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _write(path, obj):
+    try:
+        os.makedirs(DATA, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        pass
+
+
+def _clubs_state():
+    raw = _read(CLUB_FILE)
+    return ({int(k): v for k, v in raw.get("clubs", {}).items()}, set(raw.get("tried", [])), raw.get("at", 0))
+
+
+# ---------------------------------------------------------------- PL 요청 (워커 전용, 5초 간격·429 쿨다운)
+def _pl_get(path):
+    """429 면 쿨다운을 걸고 예외를 던진다. 호출은 워커 스레드에서만."""
+    now = time.time()
+    if now < _state["cooldown"]:
+        raise RuntimeError("cooldown")
+    wait = _state["last"] + SPACING - now
+    if wait > 0:
+        time.sleep(wait)
+    _state["last"] = time.time()
+    req = urllib.request.Request(SITE + path, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as res:
+            return res.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            _state["cooldown"] = time.time() + COOLDOWN
+        raise
+
+
+def _work():
+    try:
+        while time.time() >= _state["cooldown"]:
+            clubs, tried, at = _clubs_state()
+            # 1) 필요한 구단 선수단 HTML (만료됐거나 없을 때)
+            squads = _read(SQUAD_FILE)
+            todo = [c for c in list(_state["want"]) if time.time() - squads.get(str(c), {}).get("at", 0) > SQUAD_TTL]
+            if todo:
+                cid = todo[0]
+                try:
+                    html = _pl_get("/en/clubs/%d/x/squad" % cid)
+                    entries = parse_squad(html)
+                    if entries:
+                        squads[str(cid)] = {"at": time.time(), "entries": entries}
+                        _write(SQUAD_FILE, squads)
+                    _state["want"].discard(cid)
+                except urllib.error.HTTPError as e:
+                    if e.code == 429:
+                        return
+                    _state["want"].discard(cid)
+                except Exception:
+                    _state["want"].discard(cid)
+                continue
+            # 2) 구단 id 탐색: 추정 후보 먼저, 이어서 1..80 (이미 시도한 id 는 건너뜀)
+            order = [i for i in PRIORITY + list(range(1, MAX_CLUB_ID + 1)) if i not in tried and i not in SEED]
+            order = list(dict.fromkeys(order))
+            if not order:
+                return
+            cid = order[0]
+            try:
+                html = _pl_get("/en/clubs/%d/x/squad" % cid)
+                name = club_name(html)
+                if name:
+                    clubs[cid] = name
+                    squads = _read(SQUAD_FILE)
+                    entries = parse_squad(html)
+                    if entries:
+                        squads[str(cid)] = {"at": time.time(), "entries": entries}
+                        _write(SQUAD_FILE, squads)
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    return
+            except Exception:
+                pass
+            tried.add(cid)
+            _write(CLUB_FILE, {"clubs": clubs, "tried": sorted(tried),
+                               "at": time.time() if len(tried | set(SEED)) >= MAX_CLUB_ID else 0})
+    finally:
+        with _lock:
+            _state["worker"] = None
+
+
+def ensure_worker():
+    if not ENABLED:
+        return
+    with _lock:
+        if _state["worker"] is not None or time.time() < _state["cooldown"]:
+            return
+        t = threading.Thread(target=_work, daemon=True)
+        _state["worker"] = t
+        t.start()
+
+
+# ---------------------------------------------------------------- 응답 경로 (네트워크 없음)
+def discover_clubs():
+    """{PL 구단 id: 구단명}: 시드 + 저장된 탐색 결과. 비어 있는 부분은 백그라운드 워커가 채운다."""
+    clubs, tried, at = _clubs_state()
+    merged = dict(SEED)
+    merged.update(clubs)
+    if len(tried | set(SEED)) < MAX_CLUB_ID:
+        ensure_worker()
+    return merged
 
 
 def _espn_names(espn_team_id):
@@ -166,60 +243,18 @@ def _espn_names(espn_team_id):
 
 
 def squad_entries(espn_team_id):
+    """저장된 선수단(없거나 만료면 워커에 요청하고, 있으면 만료됐어도 그대로 쓴다). 응답 경로에서 네트워크를 쓰지 않는다."""
     if not ENABLED:
         return []
-    now = time.time()
-    with _lock:
-        hit = _cache.get(espn_team_id)
-    if hit and now - hit[0] < TTL:
-        return hit[1]
     cid = club_id_for(_espn_names(espn_team_id), discover_clubs())
     if not cid:
-        return hit[1] if hit else []
-    try:
-        body, _ = _fetch("%s/en/clubs/%d/x/squad" % (SITE, cid))
-        entries = parse_squad(body.decode("utf-8", "replace"))
-    except Exception:
-        return hit[1] if hit else []
-    with _lock:
-        _cache[espn_team_id] = (now, entries)
-    return entries
+        return []
+    saved = _read(SQUAD_FILE).get(str(cid)) or {}
+    if time.time() - saved.get("at", 0) > SQUAD_TTL:
+        _state["want"].add(cid)
+        ensure_worker()
+    return saved.get("entries", [])
 
 
-def attach(players, espn_team_id, keep=()):
-    """선수 dict 목록에 PL 공식 사진을 붙인다(Commons 사진보다 우선). keep 에 든 선수 id(수동 지정)는 건드리지 않는다.
-    이미지 응답은 선수별로 하루 한 번만 검증(병렬)."""
-    entries = squad_entries(espn_team_id)
-    if not entries:
-        return players
-    found = {p["id"]: match(p["name"], entries) for p in players if p["id"] not in keep}
-    todo = [e["id"] for e in found.values() if e]
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        ok = dict(zip(todo, pool.map(_image_ok, todo)))
-    out = []
-    for p in players:
-        e = found.get(p["id"])
-        if e and ok.get(e["id"]):
-            p = dict(p, photoURL=IMG % e["id"], photoSource="premierleague",
-                     photoCredit={"author": "Premier League", "license": "공식 사이트 이미지(개인 열람용)", "licenseURL": None,
-                                  "pageURL": "%s/en/players/%s/%s/overview" % (SITE, e["id"], e["slug"])})
-        out.append(p)
-    return out
-
-
-_img_ok = {}
-
-
-def _image_ok(pid):
-    """200 + PNG 이고 '사진 없음' 자리표시 이미지(약 6KB)가 아닐 때만 True. 결과는 하루 캐시."""
-    now = time.time()
-    hit = _img_ok.get(pid)
-    if hit and now - hit[0] < TTL:
-        return hit[1]
-    try:
-        body, ctype = _fetch(IMG % pid)
-        ok = "image/png" in ctype and len(body) > 20000
-    except Exception:
-        ok = hit[1] if hit else False
-    _img_ok[pid] = (now, ok)
-    return ok
+def candidates(players, espn_team_id, keep=()):
+    return candidates_for(players, squad_entries(espn_team_id), keep) if ENABLED else {}
