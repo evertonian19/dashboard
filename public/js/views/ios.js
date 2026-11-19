@@ -33,7 +33,7 @@ const posBadge = (p) => `<i class="pos ${p}">${POS[p][0]}</i>`;
 
 const crest = (c, size = 28) => `<span class="crest" style="--s:${size}px" title="${esc(c.name)}">${esc((c.code || c.name).slice(0, 3).toUpperCase())}${
   c.logoURL ? `<img src="${esc(c.logoURL)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
-const flag = (p) => (p.flagURL ? `<img class="flag" src="${esc(p.flagURL)}" alt="${esc(p.nationality || '')}" title="${esc(p.nationality || '')}" loading="lazy" onerror="this.remove()">` : '');
+const flag = (p) => (p.flagURL ? `<img class="flag" src="${esc(p.flagURL)}" alt="${esc(p.nationality || '')}" title="${esc(p.nationality || '')}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'), { className: 'flag' }))">` : '<i class="flag"></i>');
 const formBoxes = (letters) => `<span class="fm-form">${letters.map((r) => `<i class="r-${r}">${{ W: '승', D: '무', L: '패' }[r]}</i>`).join('')}</span>`;
 const card = (inner, cls = '') => `<section class="p-card ${cls}">${inner}</section>`;
 const title = (t) => `<h3 class="p-sec">${esc(t)}</h3>`;
@@ -76,7 +76,7 @@ function homeView() {
   const next = n ? panel('다음 경기', `<div class="nx"><div>${crest(n.home, 46)}<b>${esc(n.home.shortName)}</b></div>
       <div class="nx-m"><small>${esc(n.competition)} · ${isHome(n) ? '홈' : '원정'}</small><em>${n.phase === 'live' ? 'LIVE' : 'VS'}</em>
       <p>${dayText(n.kickoff)} ${timeText(n.kickoff)}</p></div><div>${crest(n.away, 46)}<b>${esc(n.away.shortName)}</b></div></div>
-      <p class="p-count" data-kick="${esc(n.kickoff)}">${countdown(n.kickoff) || '곧 시작'}</p>`, 'hero')
+      <p class="p-count" data-kick="${esc(n.kickoff)}">${countdown(n.kickoff) || '곧 시작'}</p>`, 'fm-hero')
     : panel('다음 경기', '<p class="p-dim">예정된 경기가 없어요.</p>');
   const s = ov.standing;
   const table = s ? panel('리그 순위', `<div class="lg"><div><small>순위</small><b>${s.rank}<sup>위</sup></b></div><div><small>승점</small><b>${s.points}</b></div>
@@ -114,13 +114,17 @@ function matchView(id) {
   const m = d.match, sub = subOf('match', 'ov');
   const head = panel('', `<small class="p-dim">${esc(m.competition)} · ${dayText(m.kickoff)} ${timeText(m.kickoff)}${m.venue ? ' · ' + esc(m.venue) : ''}</small>
     <div class="nx"><div>${crest(m.home, 44)}<b>${esc(m.home.shortName)}</b></div><div class="nx-m"><em class="big">${m.homeGoals == null ? 'VS' : `${m.homeGoals} - ${m.awayGoals}`}</em><small>${esc(m.statusText)}</small></div>
-    <div>${crest(m.away, 44)}<b>${esc(m.away.shortName)}</b></div></div>`, 'hero');
+    <div>${crest(m.away, 44)}<b>${esc(m.away.shortName)}</b></div></div>`, 'fm-hero');
   const tabs = subTabs('match', [['ov', '개요'], ['stats', '통계'], ['lineup', '라인업'], ['ev', '이벤트']], sub);
   const stats = d.stats.map((s) => {
     const total = s.home + s.away || 1, pct = (v) => (v / total) * 100, fmt = (v) => `${v}${s.isPercent ? '%' : ''}`;
     return `<div class="p-stat"><span>${fmt(s.home)}</span><small>${esc(s.label)}</small><span>${fmt(s.away)}</span><div class="p-bar"><i class="h" style="width:${pct(s.home)}%"></i><i class="a" style="width:${pct(s.away)}%"></i></div></div>`;
   }).join('') || '<p class="p-dim">통계가 아직 없어요.</p>';
-  const evs = d.events.map((e) => `<div class="p-ev ${e.clubID === m.home.id ? 'l' : 'r'}"><span>${e.minute}'${e.extra ? '+' + e.extra : ''}</span><span>${e.icon} ${esc(e.player)}${e.assist ? `<small> (${esc(e.assist)})</small>` : ''}</span></div>`).join('') || '<p class="p-dim">주요 장면이 없어요.</p>';
+  const evs = d.events.map((e) => {
+    const home = e.clubID === m.home.id, min = `${e.minute}'${e.extra ? '+' + e.extra : ''}`;
+    const who = `${e.icon} ${esc(e.player)}${e.assist ? `<small> (${esc(e.assist)})</small>` : ''}`;
+    return `<div class="p-ev"><span class="l">${home ? who : ''}</span><span class="m">${min}</span><span class="r">${home ? '' : who}</span></div>`;
+  }).join('') || '<p class="p-dim">주요 장면이 없어요.</p>';
   let body;
   if (sub === 'stats') body = panel('경기 통계', stats);
   else if (sub === 'ev') body = panel('주요 장면', evs);
@@ -163,7 +167,7 @@ function radarSvg(metrics) {
   const ring = (k) => metrics.map((_, i) => pt(i, k).map((x) => x.toFixed(1)).join(',')).join(' ');
   const shape = metrics.map((m, i) => pt(i, m.value).map((x) => x.toFixed(1)).join(',')).join(' ');
   const labels = metrics.map((m, i) => { const [x, y] = pt(i, 1.22); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${esc(m.label)}</text>`; }).join('');
-  return `<svg viewBox="0 0 200 200" class="radar">${[0.33, 0.66, 1].map((k) => `<polygon points="${ring(k)}" class="rg"/>`).join('')}<polygon points="${shape}" class="rs"/>${labels}</svg>`;
+  return `<svg viewBox="-26 -4 252 208" class="radar">${[0.33, 0.66, 1].map((k) => `<polygon points="${ring(k)}" class="rg"/>`).join('')}<polygon points="${shape}" class="rs"/>${labels}</svg>`;
 }
 
 function playerView(id) {
@@ -171,7 +175,7 @@ function playerView(id) {
   if (!p) return err('선수를 찾지 못했어요.');
   const sub = subOf('player', 'ov'), s = p.stats, apps = s ? s.appearances : 0;
   const hero = panel('', `<div class="ph"><span class="av">${esc(p.name.slice(0, 1))}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
-      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>`, 'hero');
+      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>`, 'fm-hero');
   const tabs = subTabs('player', [['ov', '개요'], ['stats', '기록'], ['info', '정보']], sub);
   let body;
   if (sub === 'stats') {
@@ -214,7 +218,7 @@ function clubView(id) {
   if (!c) return err('구단 정보가 없어요.');
   const roster = model.rosters[id];
   const hero = panel('', `<div class="nx"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
-    ${row ? `<p class="p-when">${row.rank}위 · 승점 ${row.points} · ${row.won}승 ${row.drawn}무 ${row.lost}패</p>` : ''}`, 'hero');
+    ${row ? `<p class="p-when">${row.rank}위 · 승점 ${row.points} · ${row.won}승 ${row.drawn}무 ${row.lost}패</p>` : ''}`, 'fm-hero');
   const body = roster && roster.__error ? err(roster.__error) : roster ? panel(`스쿼드 · ${roster.players.length}명${roster.coach ? ` · 감독 ${esc(roster.coach)}` : ''}`, rosterTable(roster.players)) : err('스쿼드 불러오는 중…');
   return hero + body;
 }
@@ -272,7 +276,7 @@ function statusHtml(s) {
   const max = Math.max(...s.modules.map((m) => m.lines));
   const mods = s.modules.map((m) => `<div class="st-mod"><span><b>${m.name}</b><small>${esc(m.role)} · ${m.files}파일</small></span><div class="st-bar"><i style="width:${(m.lines / max) * 100}%"></i></div><em>${numFmt.format(m.lines)}</em></div>`).join('');
   const feats = s.features.map((f) => `<li class="${f.implemented ? 'ok' : 'no'}"><b>${esc(f.name)}</b><span>${esc(f.desc)}</span>
-    <em>${f.implemented ? '구현됨' : `${f.present}/${f.files}`}</em>${f.tests ? '<em class="t">테스트</em>' : ''}<em class="u">실기기 미검증</em></li>`).join('');
+    <em>${f.implemented ? '구현됨' : `${f.present}/${f.files}`}</em>${f.tests ? '<em class="t">테스트</em>' : '<em class="x"></em>'}<em class="u">실기기 미검증</em></li>`).join('');
   const commits = s.commits.map((c) => `<li><code>${esc(c.hash)}</code><span>${esc(c.subject)}</span><small>${fmtDateTime(c.at)}</small></li>`).join('');
   return `<div class="st-top">
       <div><b>${s.commits_total ?? '-'}</b><small>커밋</small></div><div><b>${numFmt.format(s.source_lines)}</b><small>소스 줄</small></div>
