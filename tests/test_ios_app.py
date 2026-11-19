@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from backend import espn, wikidata
+from backend import espn, plphotos, wikidata
 from backend import ios_app as app
 from backend.ios_status import ios_status
 
@@ -236,6 +236,43 @@ class PhotoTests(unittest.TestCase):
     def test_override_can_block_or_set_photo(self):
         self.assertIsNone(self._finish({301166: "X.jpg"}, {"301166": {"photo": None}}, self.META)["photoURL"])
         self.assertEqual(self._finish({}, {"301166": {"photo": "X.jpg"}}, self.META)["photoCredit"]["author"], "Jane")
+
+
+PL_HTML = """<a href="/en/players/111234/jordan-pickford/overview">x</a><a href="/en/players/128295/christian-n-rgaard/overview">x</a>
+<a href="/en/players/513466/merlin-r-hl/overview">x</a><a href="/en/players/512462/jake-o-brien/overview">x</a>
+<a href="/en/players/224967/vitalii-mykolenko/overview">x</a><a href="/en/players/1/james-smith/overview">x</a>
+<a href="/en/players/2/john-smith/overview">x</a><a href="/en/players/111234/jordan-pickford/overview">dup</a>"""
+
+
+class PLPhotoTests(unittest.TestCase):
+    def setUp(self):
+        self.entries = plphotos.parse_squad(PL_HTML)
+
+    def test_parse_dedupes_in_order(self):
+        self.assertEqual([e["id"] for e in self.entries], ["111234", "128295", "513466", "512462", "224967", "1", "2"])
+
+    def test_special_characters_match(self):
+        for name, pid in [("Christian Nørgaard", "128295"), ("Merlin Röhl", "513466"), ("Jake O'Brien", "512462"), ("Jordan Pickford", "111234")]:
+            self.assertEqual(plphotos.match(name, self.entries)["id"], pid, name)
+
+    def test_spelling_variant_needs_unique_surname_and_initial(self):
+        self.assertEqual(plphotos.match("Vitaliy Mykolenko", self.entries)["id"], "224967")
+
+    def test_ambiguous_or_unknown_is_not_matched(self):
+        self.assertIsNone(plphotos.match("Sam Smith", self.entries))       # 성이 같은 선수가 둘
+        self.assertIsNone(plphotos.match("Nobody Here", self.entries))
+
+    def test_override_photo_is_kept_and_others_replaced(self):
+        orig = plphotos.squad_entries, plphotos._image_ok
+        plphotos.squad_entries, plphotos._image_ok = (lambda team: self.entries), (lambda pid: True)
+        try:
+            ps = [{"id": 1, "name": "Jordan Pickford", "photoURL": "commons.jpg"}, {"id": 2, "name": "Merlin Röhl", "photoURL": "keep.jpg"}]
+            out = plphotos.attach(ps, 368, keep={2})
+        finally:
+            plphotos.squad_entries, plphotos._image_ok = orig
+        self.assertTrue(out[0]["photoURL"].endswith("/111234.png"))       # Commons 보다 PL 공식이 우선
+        self.assertEqual(out[0]["photoSource"], "premierleague")
+        self.assertEqual(out[1]["photoURL"], "keep.jpg")                  # 수동 지정은 그대로
 
 
 class StatusTests(unittest.TestCase):

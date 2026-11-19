@@ -34,6 +34,7 @@ const posBadge = (p) => `<i class="pos ${p}">${POS[p][0]}</i>`;
 const crest = (c, size = 28) => `<span class="crest" style="--s:${size}px" title="${esc(c.name)}">${esc((c.code || c.name).slice(0, 3).toUpperCase())}${
   c.logoURL ? `<img src="${esc(c.logoURL)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const flag = (p) => (p.flagURL ? `<img class="flag" src="${esc(p.flagURL)}" alt="" aria-hidden="true" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'), { className: 'flag' }))">` : '<i class="flag"></i>');
+const face = (p) => (p.photoURL ? `<img class="face" src="${esc(p.photoURL)}" alt="" aria-hidden="true" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('i'), { className: 'face' }))">` : '<i class="face"></i>');
 const formBoxes = (letters) => `<span class="fm-form">${letters.map((r) => `<i class="r-${r}">${{ W: '승', D: '무', L: '패' }[r]}</i>`).join('')}</span>`;
 const card = (inner, cls = '') => `<section class="p-card ${cls}">${inner}</section>`;
 const title = (t) => `<h3 class="p-sec">${esc(t)}</h3>`;
@@ -151,7 +152,7 @@ function rosterTable(players, ctx = 'squad') {
   const sorted = [...players].sort(SORTS[nav.sort] || SORTS.pos);
   const th = (k, t) => `<th class="${nav.sort === k ? 'on' : ''}" data-sort="${k}">${t}</th>`;
   return `<table class="fm-t sq"><thead><tr><th>#</th><th class="tl" data-sort="pos">선수</th>${th('age', '나이')}${th('apps', '출전')}${th('goals', '골')}${th('assists', '도움')}</tr></thead><tbody>${
-    sorted.map((p) => `<tr data-go="player" data-id="${p.id}"><td class="num">${dash(p.number)}</td><td class="tl">${posBadge(p.position)} ${flag(p)} ${esc(p.shortName)}</td><td>${dash(p.age)}</td>
+    sorted.map((p) => `<tr data-go="player" data-id="${p.id}"><td class="num">${dash(p.number)}</td><td class="tl">${face(p)}${posBadge(p.position)} ${flag(p)} ${esc(p.shortName)}</td><td>${dash(p.age)}</td>
       <td>${dash(st(p, 'appearances'))}</td><td class="${st(p, 'goals') ? 'fm-hl' : ''}">${dash(st(p, 'goals'))}</td><td class="${st(p, 'assists') ? 'fm-hl' : ''}">${dash(st(p, 'assists'))}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -189,8 +190,11 @@ function playerView(id) {
     const dis = p.bioDisputed || {};
     const warn = (field, fmt = (x) => x) => (field in dis ? ` <i class="bio-warn" title="ESPN 원본: ${esc(fmt(dis[field]) ?? '-')}">!</i>` : '');
     const pc = p.photoCredit;
-    const photoLine = pc ? `<p class="p-note">사진: ${esc(pc.author)} · ${pc.licenseURL ? `<a href="${esc(pc.licenseURL)}" target="_blank" rel="noopener">${esc(pc.license)}</a>` : esc(pc.license)} · ${
-      pc.pageURL ? `<a href="${esc(pc.pageURL)}" target="_blank" rel="noopener">Wikimedia Commons</a>` : 'Wikimedia Commons'}</p>` : '<p class="p-note">사진: 자유 라이선스 사진이 없어 이니셜로 표시합니다.</p>';
+    const link = (u, t) => (u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t));
+    const photoLine = !pc ? '<p class="p-note">사진: 사진을 구하지 못해 이니셜로 표시합니다.</p>'
+      : p.photoSource === 'premierleague'
+        ? `<p class="p-note">사진: ${link(pc.pageURL, 'Premier League 공식 사이트')} · 개인 로컬 열람용 이미지입니다.</p>`
+        : `<p class="p-note">사진: ${esc(pc.author)} · ${link(pc.licenseURL, pc.license)} · ${link(pc.pageURL, 'Wikimedia Commons')}</p>`;
     const srcText = { override: '수동 보정', wikidata: 'Wikidata 보정', espn: p.bioVerified ? 'ESPN · Wikidata 교차 확인' : 'ESPN 원본 (미검증)' }[p.bioSource] || 'ESPN';
     const disNote = Object.keys(dis).length
       ? `<p class="p-note bio-note">ESPN 원본은 ${[['nationality', '국적', (x) => x], ['birthDate', '생년월일', (x) => x], ['heightCM', '키', (x) => (x ? x + ' cm' : '-')]]

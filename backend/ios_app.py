@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from backend import espn, wikidata
+from backend import espn, plphotos, wikidata
 
 TEAM_ID = espn.TEAM_ID
 SEASON = 2026
@@ -166,7 +166,14 @@ def _club_name(club_id):
 def squad(club_id=TEAM_ID):
     data = espn.roster(club_id)
     # 신상(생년월일·키·국적)은 ESPN 이 동명이인과 섞이는 경우가 있어 Wikidata·수동 보정으로 교차 검증한다.
-    data = dict(data, players=wikidata.enrich(data["players"], club_id, _club_name(club_id)))
+    players = wikidata.enrich(data["players"], club_id, _club_name(club_id))
+    for p in players:
+        if p.get("photoURL"):
+            p["photoSource"] = "commons"
+    # 사진 우선순위: 수동 지정 > 프리미어리그 공식 > Commons > 이니셜 (공식 사진은 개인 로컬 열람용, PL_PHOTOS=0 으로 끈다)
+    manual = {int(k) for k, v in wikidata.load_overrides().items() if v.get("photo")} | \
+             {int(k) for k, v in wikidata.load_overrides().items() if "photo" in v and v["photo"] is None}
+    data = dict(data, players=plphotos.attach(players, club_id, keep=manual))
     games = _team_games() if club_id == TEAM_ID else None
     players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games),
                     contribution=(p["stats"]["goals"] + p["stats"]["assists"]) if p["stats"] else 0) for p in data["players"]]
@@ -279,9 +286,14 @@ def diagnostics():
         report["bio"] = audit
         sq = squad()["players"]
         with_photo = [p for p in sq if p.get("photoURL")]
+        by = {}
+        for p in with_photo:
+            by[p.get("photoSource") or "commons"] = by.get(p.get("photoSource") or "commons", 0) + 1
         report["missingPhotos"] = len(sq) - len(with_photo)
+        names = {"premierleague": "프리미어리그 공식", "commons": "Wikimedia Commons"}
         report["checks"].append({"title": "선수 사진", "level": "ok" if len(with_photo) == len(sq) else "warning",
-            "detail": "%d/%d명 (Wikimedia Commons, 자유 라이선스·작성자 표기). 없는 선수는 이니셜로 표시합니다." % (len(with_photo), len(sq))})
+            "detail": "%d/%d명 (%s). 없는 선수는 이니셜로 표시합니다. 공식 사진은 개인 로컬 열람용입니다." % (
+                len(with_photo), len(sq), " · ".join("%s %d" % (names.get(k, k), v) for k, v in by.items()) or "없음")})
         lvl = "ok" if not audit["disputed"] else "warning"
         names = ", ".join(d["name"] for d in audit["disputed"])
         report["checks"].append({"title": "선수 신상 교차 검증", "level": lvl,
