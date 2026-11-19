@@ -4,25 +4,6 @@
 메인 화면(할 일 · 메모 · 즐겨찾기 · 날씨 · 서버 상태 · Claude 사용량), 다이어그램, 게시판, 문서, 메일 확인, 설정을 한곳에서 봅니다.
 화면은 Football Manager 27의 상단 메뉴 바 구조를 따랐습니다.
 
-## 실행
-
-```bash
-python3 server.py set-login 아이디      # 로그인 계정 만들기 (비밀번호는 입력창으로 받음)
-python3 server.py                       # http://127.0.0.1:8080
-```
-
-로그인하지 않으면 모든 화면이 로그인 페이지로 이동하고 모든 API가 401을 돌려줍니다. 기본적으로 이 컴퓨터(127.0.0.1)에서만 접속됩니다.
-
-| 환경 변수 | 기본값 | 설명 |
-|---|---|---|
-| `HOST` | `127.0.0.1` | 바인드 주소 |
-| `PORT` | `8080` | 포트 |
-| `DASHBOARD_DATA` | `./data` | 데이터베이스와 업로드 파일 위치 (git에서 제외됨) |
-| `CLAUDE_DIR` | `~/.claude/projects` | Claude Code 로그 위치 (토큰 사용량 집계) |
-| `CLAUDE_USAGE_FILE` | `~/.claude/dashboard-usage.json` | Claude Code 상태 줄이 저장하는 공식 한도 정보 |
-| `OCI_DIR` | `~/oci-oke` | OCI 노드풀 재시도 로그 위치 (없으면 해당 카드는 비어 있음) |
-| `SOFFICE` | 자동 탐색 | LibreOffice 실행 파일 (문서 → PDF 변환, 없으면 변환 버튼이 나타나지 않음) |
-
 ## 구조
 
 ```
