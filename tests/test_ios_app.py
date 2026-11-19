@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from backend import espn
+from backend import espn, wikidata
 from backend import ios_app as app
 from backend.ios_status import ios_status
 
@@ -117,6 +117,82 @@ class MetricsTests(unittest.TestCase):
                   "squadCount": 24, "missingNumbers": 0, "nextMatchDate": None, "errors": []}
         titles = [c["title"] for c in app.data_report_checks(report)]
         self.assertIn("제공되지 않는 항목", titles)
+
+
+def ent(label, teams, dob, height, citizen=("Q142",), place=("Q456",), aliases=()):
+    return {"label": label, "aliases": list(aliases), "teams": teams, "dob": dob, "height": height,
+            "citizen": list(citizen), "birthplace": list(place), "iso": None}
+
+
+EVERTON = "Q5794"
+LABELS = {"Q142": {"label": "France", "iso": "FRA"}, "Q456": {"label": "Lyon", "iso": None}, "Q29": {"label": "Guinea", "iso": "GUI"}}
+BARRY_ESPN = {"id": 301166, "name": "Thierno Barry", "number": 11, "position": "attacker", "age": 26, "nationality": "Guinea",
+              "birthDate": "2000-01-12", "heightCM": 173, "weightKG": 82, "birthPlace": None,
+              "flagURL": "https://a.espncdn.com/i/teamlogos/countries/500/gui.png"}
+GUINEAN = ent("Thierno Barry", [["Q235411", False]], "+2000-01-12T00:00:00Z", ["+1.73", "Q11573"], citizen=("Q29",), place=())
+FRENCH = ent("Thierno Barry", [["Q12297", True], [EVERTON, False]], "+2002-10-21T00:00:00Z", ["+1.95", "Q11573"])
+
+
+class WikidataTests(unittest.TestCase):
+    def test_same_name_other_club_is_excluded(self):
+        hit = wikidata.match_player(BARRY_ESPN, EVERTON, [GUINEAN, FRENCH])
+        self.assertIs(hit, FRENCH)
+
+    def test_no_or_ambiguous_candidates_are_not_applied(self):
+        self.assertIsNone(wikidata.match_player(BARRY_ESPN, EVERTON, [GUINEAN]))
+        twin = dict(FRENCH)
+        self.assertIsNone(wikidata.match_player(BARRY_ESPN, EVERTON, [FRENCH, twin]))
+        # 성만 같은 다른 선수는 이름 불일치
+        other = ent("Thierno Bah", [[EVERTON, False]], "+2000-01-01T00:00:00Z", ["+1.80", "Q11573"])
+        self.assertIsNone(wikidata.match_player(BARRY_ESPN, EVERTON, [other]))
+
+    def test_ended_membership_does_not_count(self):
+        gone = ent("Thierno Barry", [[EVERTON, True]], "+2002-10-21T00:00:00Z", ["+1.95", "Q11573"])
+        self.assertIsNone(wikidata.match_player(BARRY_ESPN, EVERTON, [gone]))
+
+    def test_facts_units_and_apply(self):
+        f = wikidata.facts(FRENCH, LABELS)
+        self.assertEqual((f["birthDate"], f["heightCM"], f["nationality"], f["birthPlace"]), ("2002-10-21", 195, "France", "Lyon"))
+        out = wikidata.apply_facts(BARRY_ESPN, f, "wikidata", today=__import__("datetime").date(2026, 11, 19))
+        self.assertEqual(out["age"], 24)
+        self.assertIsNone(out["weightKG"])                       # 다른 사람 프로필이 섞였던 값은 버린다
+        self.assertEqual(set(out["bioDisputed"]), {"birthDate", "heightCM", "nationality"})
+        self.assertEqual(out["bioDisputed"]["nationality"], "Guinea")
+        self.assertTrue(out["flagURL"].endswith("/gui.png") is False)
+
+    def test_uk_vs_home_nation_is_not_a_dispute(self):
+        eng = dict(BARRY_ESPN, nationality="England", birthDate="2002-10-21", heightCM=195, flagURL="x/eng.png")
+        found = {"birthDate": "2002-10-21", "heightCM": 196, "nationality": "United Kingdom", "birthPlace": None, "iso": "GBR"}
+        out = wikidata.apply_facts(eng, found, "wikidata")
+        self.assertEqual(out["nationality"], "England")
+        self.assertEqual(out["bioDisputed"], {})
+        self.assertEqual(out["weightKG"], 82)
+
+    def test_insane_values_are_rejected(self):
+        bad = ent("X", [[EVERTON, False]], "+2002-10-21T00:00:00Z", ["+3.20", "Q11573"])
+        self.assertIsNone(wikidata.facts(bad, LABELS))
+        old = ent("Y", [[EVERTON, False]], "+1950-01-01T00:00:00Z", ["+1.80", "Q11573"])
+        self.assertIsNone(wikidata.facts(old, LABELS))
+
+    def test_override_beats_wikidata_and_works_offline(self):
+        orig = wikidata.load_overrides
+        wikidata.load_overrides = lambda: {"301166": {"nationality": "France", "iso": "fra", "birthDate": "2002-10-21", "heightCM": 195, "weightKG": None}}
+        try:
+            wikidata._local.offline = True
+            wikidata._jobs[999999] = True                  # 백그라운드 조회(네트워크)가 시작되지 않게 막는다
+            out = wikidata.enrich([BARRY_ESPN], 999999, "Nowhere FC", today=__import__("datetime").date(2026, 11, 19), block=False)[0]
+        finally:
+            wikidata._local.offline = False
+            wikidata._jobs.pop(999999, None)
+            wikidata.load_overrides = orig
+        self.assertEqual((out["nationality"], out["birthDate"], out["heightCM"], out["age"]), ("France", "2002-10-21", 195, 24))
+        self.assertEqual(out["bioSource"], "override")
+        self.assertTrue(out["flagURL"].endswith("/fra.png"))
+
+    def test_override_file_is_valid_json_with_barry(self):
+        ov = wikidata.load_overrides()
+        self.assertEqual(ov["301166"]["nationality"], "France")
+        self.assertEqual(ov["301166"]["birthDate"], "2002-10-21")
 
 
 class StatusTests(unittest.TestCase):

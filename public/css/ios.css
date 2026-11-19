@@ -40,6 +40,7 @@
 
 .crest { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--s); height: var(--s); border-radius: 50%; background: var(--sf2); font-size: calc(var(--s) * .28); font-weight: 800; color: var(--tx2); overflow: hidden; }
 .crest img { position: absolute; inset: 10%; width: 80%; height: 80%; object-fit: contain; }
+.bio-warn { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 4px; border-radius: 50%; background: #F5C451; color: #1a1405; font-style: normal; font-size: 10px; font-weight: 900; cursor: help; } .bio-note { color: #E6B94A; }
 .flag { display: inline-block; width: 16px; height: 11px; object-fit: cover; border-radius: 2px; vertical-align: -1px; }
 .nx { display: flex; align-items: center; justify-content: space-around; gap: 6px; margin: 4px 0; } .nx > div { display: grid; justify-items: center; gap: 4px; min-width: 70px; } .nx b { font-size: 12px; }
 .nx-m { text-align: center; } .nx-m em { display: block; font-style: normal; font-size: 18px; font-weight: 900; color: #7FA6E8; } .nx-m em.big { font-size: 28px; color: #fff; font-variant-numeric: tabular-nums; }
@@ -53,8 +54,8 @@
 .fm-t td { padding: 6px 3px; text-align: center; border-bottom: 1px solid #232C3A; }
 .fm-t tr[data-go] { cursor: pointer; } .fm-t tr[data-go]:hover td { background: rgba(63, 169, 245, .08); }
 .fm-t .tl { text-align: left; } .fm-t td.tl { display: table-cell; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.fm-t .hl { font-weight: 800; color: #fff; } .fm-t .dim { color: var(--tx2); font-size: 11px; text-align: right; } .fm-t .num { color: var(--tx2); width: 22px; }
-.fm-t.kv td:first-child { color: var(--tx2); }
+.fm-t .fm-hl { font-weight: 800; color: #fff; } .fm-t .dim { color: var(--tx2); font-size: 11px; text-align: right; } .fm-t .num { color: var(--tx2); width: 22px; }
+.fm-t.fm-kv td:first-child { color: var(--tx2); } .fm-t.fm-kv td:not(.tl) { text-align: right; }
 .pos { display: inline-grid; place-items: center; min-width: 22px; padding: 1px 3px; border-radius: 3px; font-style: normal; font-size: 9.5px; font-weight: 900; color: #0B1220; }
 .pos.goalkeeper { background: #E9C547; } .pos.defender { background: #4C9BEA; } .pos.midfielder { background: #4CC38A; } .pos.attacker { background: #EF6A63; }
 .fm-t.lg-t td.rk { width: 24px; color: var(--tx2); font-weight: 700; box-shadow: inset 3px 0 transparent; }

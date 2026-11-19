@@ -33,7 +33,7 @@ const posBadge = (p) => `<i class="pos ${p}">${POS[p][0]}</i>`;
 
 const crest = (c, size = 28) => `<span class="crest" style="--s:${size}px" title="${esc(c.name)}">${esc((c.code || c.name).slice(0, 3).toUpperCase())}${
   c.logoURL ? `<img src="${esc(c.logoURL)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
-const flag = (p) => (p.flagURL ? `<img class="flag" src="${esc(p.flagURL)}" alt="${esc(p.nationality || '')}" title="${esc(p.nationality || '')}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'), { className: 'flag' }))">` : '<i class="flag"></i>');
+const flag = (p) => (p.flagURL ? `<img class="flag" src="${esc(p.flagURL)}" alt="" aria-hidden="true" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'), { className: 'flag' }))">` : '<i class="flag"></i>');
 const formBoxes = (letters) => `<span class="fm-form">${letters.map((r) => `<i class="r-${r}">${{ W: '승', D: '무', L: '패' }[r]}</i>`).join('')}</span>`;
 const card = (inner, cls = '') => `<section class="p-card ${cls}">${inner}</section>`;
 const title = (t) => `<h3 class="p-sec">${esc(t)}</h3>`;
@@ -86,7 +86,7 @@ function homeView() {
   const squad = model.rosters[TEAM];
   const topIds = squad ? squad.topContributors : [];
   const top = topIds.length ? panel('공격 포인트 TOP', `<table class="fm-t"><thead><tr><th class="tl">선수</th><th>출전</th><th>골</th><th>도움</th><th>합</th></tr></thead><tbody>${
-    topIds.map(findPlayer).filter(Boolean).slice(0, 5).map((p) => `<tr data-go="player" data-id="${p.id}"><td class="tl">${posBadge(p.position)} ${esc(p.shortName)}</td><td>${st(p, 'appearances')}</td><td>${st(p, 'goals')}</td><td>${st(p, 'assists')}</td><td class="hl">${p.contribution}</td></tr>`).join('')}</tbody></table>`) : '';
+    topIds.map(findPlayer).filter(Boolean).slice(0, 5).map((p) => `<tr data-go="player" data-id="${p.id}"><td class="tl">${posBadge(p.position)} ${esc(p.shortName)}</td><td>${st(p, 'appearances')}</td><td>${st(p, 'goals')}</td><td>${st(p, 'assists')}</td><td class="fm-hl">${p.contribution}</td></tr>`).join('')}</tbody></table>`) : '';
   const news = !bad(model.news) ? panel('최근 뉴스', model.news.slice(0, 3).map((x) => `<button class="nw" data-tab="news"><b>${esc(x.title)}</b><small>${x.date ? dayText(x.date) : ''}</small></button>`).join('')) : '';
   const src = model.diag && !bad(model.diag) ? `<button class="src" data-go="diag">데이터: ${esc(model.diag.source)} · ${esc(model.diag.seasonName || '')} ›</button>` : '';
   return next + table + recent + top + news + src;
@@ -152,7 +152,7 @@ function rosterTable(players, ctx = 'squad') {
   const th = (k, t) => `<th class="${nav.sort === k ? 'on' : ''}" data-sort="${k}">${t}</th>`;
   return `<table class="fm-t sq"><thead><tr><th>#</th><th class="tl" data-sort="pos">선수</th>${th('age', '나이')}${th('apps', '출전')}${th('goals', '골')}${th('assists', '도움')}</tr></thead><tbody>${
     sorted.map((p) => `<tr data-go="player" data-id="${p.id}"><td class="num">${dash(p.number)}</td><td class="tl">${posBadge(p.position)} ${flag(p)} ${esc(p.shortName)}</td><td>${dash(p.age)}</td>
-      <td>${dash(st(p, 'appearances'))}</td><td class="${st(p, 'goals') ? 'hl' : ''}">${dash(st(p, 'goals'))}</td><td class="${st(p, 'assists') ? 'hl' : ''}">${dash(st(p, 'assists'))}</td></tr>`).join('')}</tbody></table>`;
+      <td>${dash(st(p, 'appearances'))}</td><td class="${st(p, 'goals') ? 'fm-hl' : ''}">${dash(st(p, 'goals'))}</td><td class="${st(p, 'assists') ? 'fm-hl' : ''}">${dash(st(p, 'assists'))}</td></tr>`).join('')}</tbody></table>`;
 }
 
 function squadView() {
@@ -183,12 +183,19 @@ function playerView(id) {
       ? [['출전', s.appearances], ['교체 투입', s.subIns], ['선방', s.saves], ['실점', s.conceded], ['피유효슈팅', s.shotsFaced], ['경고', s.yellow], ['퇴장', s.red], ['파울', s.foulsCommitted]]
       : [['출전', s.appearances], ['교체 투입', s.subIns], ['골', s.goals], ['도움', s.assists], ['슈팅', s.shots], ['유효슈팅', s.shotsOnTarget], ['파울 획득', s.foulsSuffered], ['파울', s.foulsCommitted],
         ['오프사이드', s.offsides], ['경고', s.yellow], ['퇴장', s.red], ['자책골', s.ownGoals]];
-    body = panel('시즌 기록', rows.length ? `<table class="fm-t kv">${rows.map(([l, v]) => `<tr><td class="tl">${l}</td><td class="hl">${v}</td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr>`).join('')}</table>` : '<p class="p-dim">시즌 기록이 없어요.</p>');
+    body = panel('시즌 기록', rows.length ? `<table class="fm-t fm-kv">${rows.map(([l, v]) => `<tr><td class="tl">${l}</td><td class="fm-hl">${v}</td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr>`).join('')}</table>` : '<p class="p-dim">시즌 기록이 없어요.</p>');
   } else if (sub === 'info') {
-    const kv = (k, v) => `<tr><td class="tl">${k}</td><td>${esc(v ?? '-')}</td></tr>`;
-    body = panel('선수 정보', `<table class="fm-t kv">${kv('국적', p.nationality)}${kv('포지션', POS[p.position][1])}${kv('나이', p.age != null ? p.age + '세' : null)}${kv('생년월일', p.birthDate)}
-      ${kv('키', p.heightCM ? p.heightCM + ' cm' : null)}${kv('몸무게', p.weightKG ? p.weightKG + ' kg' : null)}${kv('출생지', p.birthPlace)}${kv('등번호', p.number)}</table>
-      <p class="p-note">사진·평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>`);
+    const kv = (k, v, note = '') => `<tr><td class="tl">${k}</td><td>${esc(v ?? '-')}${note}</td></tr>`;
+    const dis = p.bioDisputed || {};
+    const warn = (field, fmt = (x) => x) => (field in dis ? ` <i class="bio-warn" title="ESPN 원본: ${esc(fmt(dis[field]) ?? '-')}">!</i>` : '');
+    const srcText = { override: '수동 보정', wikidata: 'Wikidata 보정', espn: p.bioVerified ? 'ESPN · Wikidata 교차 확인' : 'ESPN 원본 (미검증)' }[p.bioSource] || 'ESPN';
+    const disNote = Object.keys(dis).length
+      ? `<p class="p-note bio-note">ESPN 원본은 ${[['nationality', '국적', (x) => x], ['birthDate', '생년월일', (x) => x], ['heightCM', '키', (x) => (x ? x + ' cm' : '-')]]
+        .filter(([f]) => f in dis).map(([f, l, fmt]) => `${l} ${esc(fmt(dis[f]) ?? '-')}`).join(' · ')} 로 달랐습니다 (동명이인 프로필이 섞인 것으로 보여 보정).</p>` : '';
+    body = panel('선수 정보', `<table class="fm-t fm-kv">${kv('국적', p.nationality, warn('nationality'))}${kv('포지션', POS[p.position][1])}${kv('나이', p.age != null ? p.age + '세' : null)}
+      ${kv('생년월일', p.birthDate, warn('birthDate'))}${kv('키', p.heightCM ? p.heightCM + ' cm' : null, warn('heightCM', (x) => (x ? x + ' cm' : '-')))}${kv('몸무게', p.weightKG ? p.weightKG + ' kg' : null)}
+      ${kv('출생지', p.birthPlace)}${kv('등번호', p.number)}</table>
+      <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 사진·평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>${disNote}`);
   } else {
     const tags = p.strengths.length ? `<div class="p-tags"><small>강점</small>${p.strengths.map((t) => `<b>${esc(t)}</b>`).join('')}</div>` : '';
     const bars = p.radar.map((m) => `<div class="ab"><span>${esc(m.label)}</span><div><i class="${attrClass(m.value)}" style="width:${Math.max(m.value * 100, 3)}%"></i></div><em class="${attrClass(m.value)}">${Math.round(m.value * 100)}</em></div>`).join('');
@@ -207,7 +214,7 @@ function leagueView() {
   }
   if (bad(model.standings)) return tabs + err(failMsg(model.standings));
   const rows = model.standings.map((r) => `<tr class="z-${r.zone}${r.club.id === TEAM ? ' me' : ''}" data-go="club" data-id="${r.club.id}"><td class="rk">${r.rank}</td>
-    <td class="tl">${crest(r.club, 18)} ${esc(r.club.shortName)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.goalDifference > 0 ? '+' : ''}${r.goalDifference}</td><td class="hl">${r.points}</td></tr>`).join('');
+    <td class="tl">${crest(r.club, 18)} ${esc(r.club.shortName)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.goalDifference > 0 ? '+' : ''}${r.goalDifference}</td><td class="fm-hl">${r.points}</td></tr>`).join('');
   return tabs + panel('', `<table class="fm-t lg-t"><thead><tr><th>#</th><th class="tl">구단</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr></thead><tbody>${rows}</tbody></table>
     <p class="p-note"><i class="zk champions"></i>챔피언스리그 <i class="zk europa"></i>유로파 <i class="zk relegation"></i>강등</p>`);
 }

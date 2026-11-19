@@ -1,0 +1,5 @@
+{
+  "_comment": "ESPN 신상이 틀린 선수의 수동 보정(키 = ESPN athlete id). 이 파일이 자동(Wikidata) 보정보다 우선한다. 출처가 확실한 값만 넣는다.",
+  "301166": {"_name": "Thierno Barry", "nationality": "France", "iso": "fra", "birthDate": "2002-10-21", "heightCM": 195, "weightKG": null,
+             "_source": "Evertonia, essential.football, Wikidata Q116860945 (ESPN 은 기니 동명이인 Q108413798 의 값을 줌)"}
+}

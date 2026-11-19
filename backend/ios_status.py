@@ -23,6 +23,7 @@ FEATURES = [
     ("데이터 점검", "시즌·일정·스쿼드 정확성 리포트", ["EvFeatures/DataCheckView.swift"], True),
     ("ESPN 연동(기본)", "키 없이 일정·스쿼드·순위·경기 요약", ["EvNetworking/ESPNService.swift", "EvNetworking/ESPNMapping.swift",
                                                  "EvNetworking/ESPNDTO.swift"], True),
+    ("신상 교차 검증", "ESPN 신상 오류를 Wikidata·수동 보정으로 바로잡음", ["EvNetworking/PlayerBio.swift"], True),
     ("API-Football 연동(선택)", "키가 있으면 사진·평점 포함 데이터로 전환", ["EvNetworking/APIFootballService.swift",
                                                          "EvNetworking/Mapping.swift", "EvNetworking/DTO.swift"], True),
     ("FM 디자인 시스템", "패널·밑줄 탭·속성 색 막대·포지션 배지", ["EvDesign/Theme.swift", "EvDesign/Components.swift"], False),

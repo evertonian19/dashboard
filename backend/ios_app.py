@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from backend import espn
+from backend import espn, wikidata
 
 TEAM_ID = espn.TEAM_ID
 SEASON = 2026
@@ -156,8 +156,17 @@ def _team_games():
         return None
 
 
+def _club_name(club_id):
+    try:
+        return next((c["club"]["name"] for c in espn.clubs() if c["club"]["id"] == club_id), "")
+    except Exception:
+        return ""
+
+
 def squad(club_id=TEAM_ID):
     data = espn.roster(club_id)
+    # 신상(생년월일·키·국적)은 ESPN 이 동명이인과 섞이는 경우가 있어 Wikidata·수동 보정으로 교차 검증한다.
+    data = dict(data, players=wikidata.enrich(data["players"], club_id, _club_name(club_id)))
     games = _team_games() if club_id == TEAM_ID else None
     players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games),
                     contribution=(p["stats"]["goals"] + p["stats"]["assists"]) if p["stats"] else 0) for p in data["players"]]
@@ -208,6 +217,43 @@ def parse_rss(data):
     return out[:30]
 
 
+def bio_audit(players=None):
+    """신상 보정 현황: 자동·수동 보정된 선수, ESPN 과 값이 달랐던 항목, 교차 확인이 안 된 선수."""
+    players = players if players is not None else squad()["players"]
+    fixed = [p for p in players if p.get("bioSource") in ("wikidata", "override")]
+    disputed = [{"name": p["name"], "fields": sorted(p["bioDisputed"])} for p in players if p.get("bioDisputed")]
+    unverified = [p["name"] for p in players if not p.get("bioVerified")]
+    return {"total": len(players), "corrected": len(fixed), "disputed": disputed, "unverified": unverified,
+            "pending": sum(1 for p in players if p.get("bioPending"))}
+
+
+def stats_crosscheck(players=None):
+    """로스터의 골·도움·경고 누계를 지난 경기 요약(keyEvents)을 직접 집계한 값과 대조한다."""
+    players = players if players is not None else espn.roster()["players"]
+    goals, assists, yellow = {}, {}, {}
+    played = [m for m in espn.schedule() if m["phase"] == "finished"]
+    for m in played:
+        for ev in espn.detail(m)["events"]:
+            if ev["clubID"] != TEAM_ID:
+                continue
+            if ev["kind"] == "goal":
+                goals[ev["player"]] = goals.get(ev["player"], 0) + 1
+                if ev["assist"]:
+                    assists[ev["assist"]] = assists.get(ev["assist"], 0) + 1
+            elif ev["kind"] == "yellow":
+                yellow[ev["player"]] = yellow.get(ev["player"], 0) + 1
+    bad = []
+    for p in players:
+        st = p.get("stats")
+        if not st:
+            continue
+        have = (st["goals"], st["assists"], st["yellow"])
+        want = (goals.get(p["name"], 0), assists.get(p["name"], 0), yellow.get(p["name"], 0))
+        if have != want:
+            bad.append({"name": p["name"], "roster": list(have), "events": list(want)})
+    return {"matches": len(played), "mismatch": bad}
+
+
 def diagnostics():
     errors, all_matches, players, season = [], [], [], ""
     try:
@@ -228,6 +274,26 @@ def diagnostics():
               "fetchedAt": datetime.fromtimestamp(stamp, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if stamp else None,
               "unavailable": UNAVAILABLE}
     report["checks"] = data_report_checks(report)
+    try:
+        audit = bio_audit()
+        report["bio"] = audit
+        lvl = "ok" if not audit["disputed"] else "warning"
+        names = ", ".join(d["name"] for d in audit["disputed"])
+        report["checks"].append({"title": "선수 신상 교차 검증", "level": lvl,
+            "detail": "%d명 중 %d명 보정%s. 교차 확인 불가 %d명(ESPN 값 그대로)." % (
+                audit["total"], audit["corrected"], (" · ESPN 값이 달랐던 선수: " + names) if names else "", len(audit["unverified"]))})
+        if audit["pending"]:
+            report["checks"].append({"title": "신상 보정 진행 중", "level": "warning", "detail": "%d명 확인 중 — 잠시 후 점검을 다시 실행하세요." % audit["pending"]})
+    except Exception as exc:
+        report["checks"].append({"title": "선수 신상 교차 검증", "level": "warning", "detail": "실행하지 못했습니다: %s" % str(exc)[:100]})
+    try:
+        cc = stats_crosscheck(players)
+        bad = cc["mismatch"]
+        report["checks"].append({"title": "시즌 기록 대조", "level": "ok" if not bad else "problem",
+            "detail": ("지난 %d경기 요약의 골·도움·경고와 로스터 누계가 모두 일치합니다." % cc["matches"]) if not bad
+            else "%d명 불일치: %s" % (len(bad), ", ".join(b["name"] for b in bad[:5]))})
+    except Exception as exc:
+        report["checks"].append({"title": "시즌 기록 대조", "level": "warning", "detail": "실행하지 못했습니다: %s" % str(exc)[:100]})
     return report
 
 
