@@ -11,9 +11,9 @@ import './shell/statusbar.js';
 import './shell/theme.js';
 import './shell/search.js';
 import './shell/session.js';
-import { startLocker } from './shell/locker.js';
+import { startMarkets } from './shell/markets.js';
 
-startLocker();
+startMarkets();
 hooks.show = show;
 hooks.applyMenuNames = applyMenuNames;
 
