@@ -7,18 +7,19 @@
 }
 .mascot + .sidebar-foot { margin-top: 0; }
 .mascot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.m-svg { fill: #000; stroke: none; stroke-width: 1; stroke-linecap: butt; stroke-linejoin: miter; display: block; width: 46px; height: 52px; overflow: visible; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .35)); transition: transform .25s var(--ease-out); }
+.m-svg { fill: #000; stroke: none; stroke-width: 1; stroke-linecap: butt; stroke-linejoin: miter; display: block; width: 54px; height: 62px; overflow: visible; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .38)); transition: transform .25s var(--ease-out); }
 .mascot:hover .m-svg { transform: translateY(-1px) scale(1.04); }
 .m-svg * { transform-box: view-box; }
+.m-svg g, .m-svg path { vector-effect: none; }
 .m-shadow { fill: rgba(0, 0, 0, .3); }
-.m-glint { opacity: 0; transform-origin: 26px 27px; }
+.m-glint { opacity: 0; transform-origin: 48px 52px; }
 
 /* 평소: 숨쉬듯 몸이 위아래, 머리카락이 살랑, 가끔 깜빡 */
-.m-body { transform-origin: 32px 60px; animation: m-bob 3.2s ease-in-out infinite; }
-.m-hair { transform-origin: 32px 16px; animation: m-sway 4.6s ease-in-out infinite; }
-.m-eyes { transform-origin: 32px 27px; animation: m-blink 5.4s infinite; }
-.m-sword { transform-origin: 43px 41px; }
-@keyframes m-bob { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-.7px) scaleY(1.012); } }
+.m-body { transform-origin: 60px 112px; animation: m-bob 3.2s ease-in-out infinite; }
+.m-hair { transform-origin: 60px 30px; animation: m-sway 4.6s ease-in-out infinite; }
+.m-eyes { transform-origin: 60px 53px; animation: m-blink 5.4s infinite; }
+.m-sword { transform-origin: 82px 78px; }
+@keyframes m-bob { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-1.3px) scaleY(1.012); } }
 @keyframes m-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.6deg); } }
 @keyframes m-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.15); } }
 
@@ -27,14 +28,14 @@
 .mascot.is-casting .m-sword { animation: m-slash 1s var(--ease-out) both; }
 .mascot.is-casting .m-hair { animation: m-hairblast 1s ease-out both; }
 .mascot.is-casting .m-eyes { animation: none; }
-.mascot.is-casting .m-lid { animation: m-lid 1s ease-out both; transform-origin: 32px 26px; }
+.mascot.is-casting .m-lid { animation: m-lid 1s ease-out both; transform-origin: 60px 50px; }
 .mascot.is-casting .m-glint { animation: m-glint .7s ease-out .12s both; }
-.mascot.is-casting .m-mouth { transform-origin: 32px 33px; animation: m-yell 1s ease-out both; }
+.mascot.is-casting .m-mouth { transform-origin: 60px 64px; animation: m-yell 1s ease-out both; }
 @keyframes m-lunge {
   0% { transform: translate(0, 0) scale(1, 1); }
-  18% { transform: translate(-1.5px, 2.4px) scale(1.04, .93); }
-  34% { transform: translate(3.4px, .6px) scale(.97, 1.04) rotate(3deg); }
-  62% { transform: translate(2.6px, 0) scale(1, 1) rotate(1.5deg); }
+  18% { transform: translate(-3px, 4.6px) scale(1.04, .93); }
+  34% { transform: translate(6.4px, 1.2px) scale(.97, 1.04) rotate(3deg); }
+  62% { transform: translate(5px, 0) scale(1, 1) rotate(1.5deg); }
   100% { transform: translate(0, 0) scale(1, 1); }
 }
 @keyframes m-slash {
@@ -44,10 +45,10 @@
   60% { transform: rotate(92deg); }
   100% { transform: rotate(0deg); }
 }
-@keyframes m-hairblast { 0% { transform: rotate(0); } 34% { transform: rotate(-7deg) translateX(-1.4px); } 100% { transform: rotate(0); } }
-@keyframes m-lid { 0%, 14% { transform: translateY(0); } 24%, 70% { transform: translateY(-1.1px); } 100% { transform: translateY(0); } }
+@keyframes m-hairblast { 0% { transform: rotate(0); } 34% { transform: rotate(-7deg) translateX(-2.6px); } 100% { transform: rotate(0); } }
+@keyframes m-lid { 0%, 14% { transform: translateY(0); } 24%, 70% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
 @keyframes m-glint { 0% { opacity: 0; transform: scale(.2) rotate(0); } 40% { opacity: 1; transform: scale(1.2) rotate(30deg); } 100% { opacity: 0; transform: scale(.6) rotate(60deg); } }
-@keyframes m-yell { 0% { transform: scaleY(1); } 20%, 60% { transform: scale(1.2, 2.4) translateY(.4px); } 100% { transform: scaleY(1); } }
+@keyframes m-yell { 0% { transform: scaleY(1); } 20%, 60% { transform: scale(1.2, 2.4) translateY(.8px); } 100% { transform: scaleY(1); } }
 
 /* 효과: 뷰포트 위에 얹는 레이어 (사이드바 밖 본문 쪽으로 날아감) */
 .mascot-fx { position: fixed; left: var(--x, 0); top: var(--y, 0); width: 0; height: 0; z-index: 60; pointer-events: none; }
