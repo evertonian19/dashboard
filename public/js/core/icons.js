@@ -6,6 +6,7 @@ const ICONS = {
   chart:    '<path d="M5 20V10M12 20V4M19 20v-7"/>',
   folder:   '<path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
   gear:     '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  phone:    '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M10.5 18h3"/>',
   plus:     '<path d="M12 5v14M5 12h14"/>',
   upload:   '<path d="M12 16V5M7 9.5L12 4.5l5 5"/><path d="M5 19h14"/>',
   download: '<path d="M12 4v11M7 10.5l5 5 5-5"/><path d="M5 19h14"/>',

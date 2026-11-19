@@ -14,7 +14,7 @@ backend/                  서버: 기능별 모듈
   auth.py                 로그인 (PBKDF2 해시, 세션 쿠키, 시도 횟수 제한, 공개 경로)
   sanitize.py             게시글 HTML 허용 목록 정리
   trash.py pdf.py filenames.py
-  mail.py weather.py markets.py everton.py oci.py system.py usage.py jobs.py
+  mail.py weather.py markets.py everton.py ios_app.py ios_status.py oci.py system.py usage.py jobs.py
   api/                    HTTP 처리
     handler.py            라우팅 표, 로그인/세션, 정적 파일
     board.py files.py todos.py mail.py settings.py weather.py summary.py   기능별 Mixin
@@ -25,7 +25,7 @@ public/                   브라우저에 내려가는 파일 (login.* 를 뺀 �
     core/                 api, dom, format, state, registry(메뉴 목록), hooks, uploads …
     views/                메뉴별 화면: home todos usage settings diagrams documents board mail empty
     shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션, 시장 지수 띠(markets: 상단에 코스피·코스닥·나스닥·엔비디아 흐름과 수치, 종목은 `backend/markets.py` 의 `SYMBOLS`), 우측 레일(rail: 1760px 이상에서 에버턴 다음 경기·환율·금·은·구리, 종목은 `RAIL_SYMBOLS`)
-  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → markets → rail
+  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → markets → rail → ios
 tests/smoke_api.py        API 회귀 스크립트
 ```
 
@@ -54,3 +54,7 @@ python3 tests/smoke_api.py http://127.0.0.1:8102 tester pw-12345-test > out.txt
 ## 데이터와 비밀 정보
 
 계정 해시(`auth.json`), 메일 앱 비밀번호(`mail-accounts.json`), 데이터베이스, 업로드 파일은 모두 `data/` 에 저장되며 `.gitignore` 로 제외됩니다. 이 디렉터리는 저장소에 올리지 마세요.
+
+## iOS 앱 메뉴 (Menu 8)
+
+`~/ios_everton` 앱의 개발 현황(커밋·모듈 규모·기능 체크리스트)과, 앱과 같은 샘플 데이터·계산 규칙을 옮긴 휴대폰 목업. `backend/ios_app.py` 가 `Sample.swift`/`Metrics.swift` 등을 Python 으로 옮긴 것이며 SwiftUI 렌더링·컴파일은 검증하지 않는다. 테스트: `python3 -m unittest tests.test_ios_app`

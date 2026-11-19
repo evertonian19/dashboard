@@ -3,6 +3,7 @@ import { MENUS } from '../core/registry.js';
 import { mountBoard, renderBoard } from '../views/board.js';
 import { mountDiagrams, renderDiagrams } from '../views/diagrams.js';
 import { mountDocuments, renderDocuments } from '../views/documents.js';
+import { mountIos, renderIos } from '../views/ios.js';
 import { mountHome, renderHome } from '../views/home.js';
 import { mountMail, renderMail } from '../views/mail.js';
 import { mountSettings, renderSettings } from '../views/settings.js';
@@ -17,5 +18,6 @@ const VIEWS = {
   menu5: { render: renderSettings, mount: mountSettings },
   menu6: { render: renderMail, mount: mountMail },
   menu7: { render: renderTodos, mount: mountTodos },
+  menu8: { render: renderIos, mount: mountIos },
 };
 MENUS.forEach((m) => Object.assign(m, VIEWS[m.id]));

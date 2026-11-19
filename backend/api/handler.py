@@ -20,6 +20,8 @@ from backend.auth import LOGIN_LOCK_SECONDS, LOGIN_MAX_FAILURES, SESSION_TTL, _l
 from backend.config import PUBLIC
 from backend.db import db, now_iso, one_line
 from backend.mail import mail_overview
+from backend import ios_app
+from backend.ios_status import ios_status
 from backend.everton import everton_overview
 from backend.markets import market_overview, rail_rates
 from backend.oci import oci_status
@@ -98,6 +100,14 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
                 "/api/markets": lambda: self.send_json(market_overview()),
                 "/api/rates": lambda: self.send_json(rail_rates()),
                 "/api/everton": lambda: self.send_json(everton_overview()),
+                "/api/ios/status": lambda: self.send_json(ios_status()),
+                "/api/ios/overview": lambda: self.send_json(ios_app.overview()),
+                "/api/ios/matches": lambda: self.send_json(ios_app.matches()),
+                "/api/ios/squad": lambda: self.send_json(ios_app.squad()),
+                "/api/ios/clubs": lambda: self.send_json(ios_app.clubs()),
+                "/api/ios/standings": lambda: self.send_json(ios_app.standings()),
+                "/api/ios/news": lambda: self.send_json(ios_app.news()),
+                "/api/ios/diagnostics": lambda: self.send_json(ios_app.diagnostics()),
                 "/api/system": lambda: self.send_json(system_status()),
                 "/api/files": lambda: self.list_files(q.get("kind", [""])[0]),
                 "/api/search": lambda: self.search(q.get("q", [""])[0]),
@@ -107,6 +117,10 @@ class Handler(BoardMixin, FilesMixin, TodosMixin, MailMixin, SettingsMixin, Weat
             m = re.fullmatch(r"/api/posts/([0-9a-f]{12})", path)
             if m:
                 return self.get_post(m.group(1))
+            m = re.fullmatch(r"/api/ios/match/(\d+)", path)
+            if m:
+                detail = ios_app.match_detail(int(m.group(1)))
+                return self.send_json(detail) if detail else self.fail(404, "없는 경기예요")
             m = re.fullmatch(r"/api/files/([0-9a-f]{12})/raw", path)
             if m:
                 return self.raw_file(m.group(1), "download" in q)

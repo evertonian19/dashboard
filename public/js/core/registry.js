@@ -18,6 +18,7 @@ const MENUS = [
   { id: 'menu5', label: 'Menu 5', icon: 'gear', foot: true },  // 메뉴바 맨 아래 톱니바퀴
   { id: 'menu6', label: 'Menu 6', icon: 'mail' },
   { id: 'menu7', label: 'Menu 7', icon: 'check' },
+  { id: 'menu8', label: 'iOS 앱', icon: 'phone', wide: true },
 ];
 MENUS.forEach((m) => { m.base = m.label; });
 const menuName = (id) => MENUS.find((m) => m.id === id)?.label || '';
