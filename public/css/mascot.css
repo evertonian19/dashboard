@@ -1,0 +1,98 @@
+/* 좌측 마스코트 (js/shell/mascot.js). 움직임은 전부 키프레임이며 transform·opacity 만 쓴다. */
+.mascot {
+  --ease-out: cubic-bezier(.16, .84, .3, 1);
+  display: block; margin: auto auto 4px; padding: 0; border: 0; background: none; cursor: pointer;
+  line-height: 0; border-radius: 10px; flex: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mascot + .sidebar-foot { margin-top: 0; }
+.mascot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.m-svg { fill: #000; stroke: none; stroke-width: 1; stroke-linecap: butt; stroke-linejoin: miter; display: block; width: 46px; height: 52px; overflow: visible; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .35)); transition: transform .25s var(--ease-out); }
+.mascot:hover .m-svg { transform: translateY(-1px) scale(1.04); }
+.m-svg * { transform-box: view-box; }
+.m-shadow { fill: rgba(0, 0, 0, .3); }
+.m-glint { opacity: 0; transform-origin: 26px 27px; }
+
+/* 평소: 숨쉬듯 몸이 위아래, 머리카락이 살랑, 가끔 깜빡 */
+.m-body { transform-origin: 32px 60px; animation: m-bob 3.2s ease-in-out infinite; }
+.m-hair { transform-origin: 32px 16px; animation: m-sway 4.6s ease-in-out infinite; }
+.m-eyes { transform-origin: 32px 27px; animation: m-blink 5.4s infinite; }
+.m-sword { transform-origin: 43px 41px; }
+@keyframes m-bob { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-.7px) scaleY(1.012); } }
+@keyframes m-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes m-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.15); } }
+
+/* 시전: 웅크림 → 큰 베기 → 반동 → 복귀 (총 1s) */
+.mascot.is-casting .m-body { animation: m-lunge 1s var(--ease-out) both; }
+.mascot.is-casting .m-sword { animation: m-slash 1s var(--ease-out) both; }
+.mascot.is-casting .m-hair { animation: m-hairblast 1s ease-out both; }
+.mascot.is-casting .m-eyes { animation: none; }
+.mascot.is-casting .m-lid { animation: m-lid 1s ease-out both; transform-origin: 32px 26px; }
+.mascot.is-casting .m-glint { animation: m-glint .7s ease-out .12s both; }
+.mascot.is-casting .m-mouth { transform-origin: 32px 33px; animation: m-yell 1s ease-out both; }
+@keyframes m-lunge {
+  0% { transform: translate(0, 0) scale(1, 1); }
+  18% { transform: translate(-1.5px, 2.4px) scale(1.04, .93); }
+  34% { transform: translate(3.4px, .6px) scale(.97, 1.04) rotate(3deg); }
+  62% { transform: translate(2.6px, 0) scale(1, 1) rotate(1.5deg); }
+  100% { transform: translate(0, 0) scale(1, 1); }
+}
+@keyframes m-slash {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(-34deg); }
+  34% { transform: rotate(104deg); }
+  60% { transform: rotate(92deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes m-hairblast { 0% { transform: rotate(0); } 34% { transform: rotate(-7deg) translateX(-1.4px); } 100% { transform: rotate(0); } }
+@keyframes m-lid { 0%, 14% { transform: translateY(0); } 24%, 70% { transform: translateY(-1.1px); } 100% { transform: translateY(0); } }
+@keyframes m-glint { 0% { opacity: 0; transform: scale(.2) rotate(0); } 40% { opacity: 1; transform: scale(1.2) rotate(30deg); } 100% { opacity: 0; transform: scale(.6) rotate(60deg); } }
+@keyframes m-yell { 0% { transform: scaleY(1); } 20%, 60% { transform: scale(1.2, 2.4) translateY(.4px); } 100% { transform: scaleY(1); } }
+
+/* 효과: 뷰포트 위에 얹는 레이어 (사이드바 밖 본문 쪽으로 날아감) */
+.mascot-fx { position: fixed; left: var(--x, 0); top: var(--y, 0); width: 0; height: 0; z-index: 60; pointer-events: none; }
+.mascot-fx > * { position: absolute; opacity: 0; }
+.fx-slash { fill: none; stroke: none; left: 4px; top: -66px; width: 150px; height: 150px; overflow: visible; transform: scale(.8); transform-origin: 20% 90%; }
+.fx-slash .arc { fill: none; stroke: #fff; stroke-linecap: round; stroke-dasharray: 220; stroke-dashoffset: 220; }
+.fx-slash .a1 { stroke-width: 5; filter: drop-shadow(0 0 6px #9CC4FF) drop-shadow(0 0 2px #fff); }
+.fx-slash .a2 { stroke-width: 2.2; stroke: #CFE1FF; }
+.fx-wave { left: 24px; top: -45px; width: 84px; height: 90px; transform-origin: 20% 50%;
+  background: linear-gradient(100deg, #fff 0%, #BBD6FF 45%, rgba(120, 170, 255, 0) 100%);
+  -webkit-mask: radial-gradient(circle at 24% 50%, transparent 56%, #000 57%); mask: radial-gradient(circle at 24% 50%, transparent 56%, #000 57%);
+  border-radius: 50%; filter: drop-shadow(0 0 8px rgba(150, 195, 255, .9)); }
+.fx-wave.w2 { top: -38px; left: 14px; width: 66px; height: 76px; filter: none; opacity: 0; }
+.fx-kanji { left: 52px; top: -62px; font: 900 26px/1 "Noto Sans JP", "Yu Gothic", "Malgun Gothic", sans-serif; color: #fff; letter-spacing: -1px;
+  -webkit-text-stroke: 3px #C8312B; paint-order: stroke fill; text-shadow: 2px 3px 0 rgba(0, 0, 0, .45); transform-origin: 0 100%; }
+.fx-spark { width: 9px; height: 9px; left: 30px; top: -4px; background: #fff; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); filter: drop-shadow(0 0 3px #9CC4FF); }
+
+.mascot-fx.go .arc.a1 { animation: fx-draw .46s cubic-bezier(.16, .84, .3, 1) .17s both; }
+.mascot-fx.go .arc.a2 { animation: fx-draw .46s cubic-bezier(.16, .84, .3, 1) .2s both; }
+.mascot-fx.go .fx-slash { animation: fx-fade .62s linear .17s both; }
+.mascot-fx.go .fx-wave { animation: fx-fly .86s cubic-bezier(.2, .7, .3, 1) .27s both; }
+.mascot-fx.go .fx-wave.w2 { animation: fx-fly2 .9s cubic-bezier(.2, .7, .3, 1) .32s both; }
+.mascot-fx.go .fx-kanji { animation: fx-kanji .9s cubic-bezier(.2, 1.4, .4, 1) .3s both; }
+.mascot-fx.go .fx-spark { animation: fx-spark .62s ease-out .3s both; }
+.mascot-fx.go .s2 { --dx: 52px; --dy: -34px; animation-delay: .34s; }
+.mascot-fx.go .s1 { --dx: 34px; --dy: 22px; }
+.mascot-fx.go .s3 { --dx: 78px; --dy: 6px; animation-delay: .38s; }
+.mascot-fx.go .s4 { --dx: 20px; --dy: -50px; animation-delay: .36s; }
+
+@keyframes fx-draw { 0% { stroke-dashoffset: 220; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes fx-fade { 0% { opacity: 1; } 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fx-fly { 0% { opacity: 0; transform: translateX(0) scale(.35); } 12% { opacity: 1; } 100% { opacity: 0; transform: translateX(340px) scale(1.55); } }
+@keyframes fx-fly2 { 0% { opacity: 0; transform: translateX(0) scale(.3); } 14% { opacity: .75; } 100% { opacity: 0; transform: translateX(300px) scale(1.3); } }
+@keyframes fx-kanji { 0% { opacity: 0; transform: scale(.2) rotate(-18deg); } 22% { opacity: 1; transform: scale(1.25) rotate(-8deg); } 38% { transform: scale(1) rotate(-8deg); } 80% { opacity: 1; transform: scale(1) rotate(-8deg) translateY(-3px); } 100% { opacity: 0; transform: scale(1) rotate(-8deg) translateY(-10px); } }
+@keyframes fx-spark { 0% { opacity: 0; transform: translate(0, 0) scale(.3) rotate(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, 0)) scale(1.3) rotate(160deg); } }
+
+/* 좁은 화면: 효과가 본문을 덜 덮도록 이동 거리를 줄인다 */
+@media (max-width: 900px) {
+  @keyframes fx-fly { 0% { opacity: 0; transform: translateX(0) scale(.35); } 12% { opacity: 1; } 100% { opacity: 0; transform: translateX(160px) scale(1.2); } }
+  .fx-kanji { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-body, .m-hair, .m-eyes, .mascot:hover .m-svg { animation: none; transform: none; }
+  .mascot.is-casting .m-body, .mascot.is-casting .m-sword, .mascot.is-casting .m-hair, .mascot.is-casting .m-lid, .mascot.is-casting .m-mouth { animation: none; }
+  .mascot.is-casting .m-sword { transform: rotate(60deg); }
+  .mascot-fx.go .fx-wave, .mascot-fx.go .fx-wave.w2, .mascot-fx.go .fx-spark, .mascot-fx.go .fx-slash { animation: none; opacity: 0; }
+  .mascot-fx.go .fx-kanji { animation: fx-fade .9s linear both; opacity: 1; transform: rotate(-8deg); }
+}

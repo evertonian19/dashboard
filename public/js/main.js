@@ -11,6 +11,7 @@ import './shell/statusbar.js';
 import './shell/theme.js';
 import './shell/search.js';
 import './shell/session.js';
+import './shell/mascot.js';
 import { startMarkets } from './shell/markets.js';
 import { startRail } from './shell/rail.js';
 
