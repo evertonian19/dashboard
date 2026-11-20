@@ -1,13 +1,20 @@
-/* 메뉴 클릭 시 축구공 바운스 (js/shell/ball.js). transform·opacity 만 사용. */
-.ucl-ball { position: fixed; left: var(--x, 0); top: var(--y, 0); width: 0; height: 0; z-index: 60; pointer-events: none; }
-.ucl-ball .b-shadow { position: absolute; left: -17px; top: -3px; width: 34px; height: 8px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); opacity: 0; animation: b-shadow 1.3s linear both; }
-.ucl-ball .b-move { position: absolute; left: -17px; top: -34px; width: 34px; height: 34px; animation: b-bounce 1.3s linear both; }
-.ucl-ball .b-squash { width: 100%; height: 100%; transform-origin: 50% 100%; animation: b-squash 1.3s linear both; }
-.ucl-ball .b-spin { width: 100%; height: 100%; animation: b-spin 1.3s cubic-bezier(.3,.6,.4,1) both; }
+/* 메뉴 클릭 시 공인구 바운스 (js/shell/ball.js). 클릭마다 5가지 액션 중 하나가 랜덤으로 나온다. transform·opacity 만 사용. */
+.ucl-ball { --dur: .9s; --spt: linear; position: fixed; left: var(--x, 0); top: var(--y, 0); width: 0; height: 0; z-index: 60; pointer-events: none; }
+.ucl-ball .b-shadow { position: absolute; left: -17px; top: -3px; width: 34px; height: 8px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); opacity: 0; animation: var(--sh) var(--dur) linear both; }
+.ucl-ball .b-move { position: absolute; left: -17px; top: -34px; width: 34px; height: 34px; animation: var(--mv) var(--dur) linear both; }
+.ucl-ball .b-squash { width: 100%; height: 100%; transform-origin: 50% 100%; animation: var(--sq) var(--dur) linear both; }
+.ucl-ball .b-spin { width: 100%; height: 100%; animation: var(--sp) var(--dur) var(--spt) both; }
 .ucl-ball svg, .ucl-ball img { display: block; width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
 
-/* 위에서 떨어져 3번 튀며 오른쪽으로 굴러감 (바닥 = 0) */
-@keyframes b-bounce {
+.a-roll   { --dur: .9s;  --mv: roll-mv;   --sq: roll-sq;   --sp: roll-sp;   --sh: roll-sh;   --spt: cubic-bezier(.3,.6,.4,1); }
+.a-high   { --dur: .95s; --mv: high-mv;   --sq: high-sq;   --sp: high-sp;   --sh: high-sh;   --spt: ease-out; }
+.a-shot   { --dur: .7s;  --mv: shot-mv;   --sq: shot-sq;   --sp: shot-sp;   --sh: shot-sh;   --spt: ease-in; }
+.a-juggle { --dur: 1s;   --mv: juggle-mv; --sq: juggle-sq; --sp: juggle-sp; --sh: juggle-sh; --spt: ease-out; }
+.a-wall   { --dur: .85s; --mv: wall-mv;   --sq: wall-sq;   --sp: wall-sp;   --sh: wall-sh;   --spt: ease-out; }
+
+/* ease-in = 떨어질 때(가속), ease-out = 튀어오를 때(감속) */
+/* 1. roll: 위에서 떨어져 3번 점점 낮게 튀며 오른쪽으로 굴러감 */
+@keyframes roll-mv {
   0%   { transform: translate(-6px, -64px); opacity: 0; animation-timing-function: cubic-bezier(.5,0,1,.6); }
   6%   { opacity: 1; }
   26%  { transform: translate(8px, 0);      animation-timing-function: cubic-bezier(0,.4,.5,1); }
@@ -17,14 +24,9 @@
   86%  { transform: translate(54px, 0); opacity: 1; }
   100% { transform: translate(78px, 0); opacity: 0; }
 }
-@keyframes b-squash {
-  0%, 24%, 28%, 60%, 64%, 85%, 100% { transform: scale(1, 1); }
-  26% { transform: scale(1.3, .72); }
-  62% { transform: scale(1.18, .84); }
-  86% { transform: scale(1.08, .92); }
-}
-@keyframes b-spin { to { transform: rotate(520deg); } }
-@keyframes b-shadow {
+@keyframes roll-sq { 0%, 24%, 28%, 60%, 64%, 85%, 100% { transform: scale(1, 1); } 26% { transform: scale(1.3, .72); } 62% { transform: scale(1.18, .84); } 86% { transform: scale(1.08, .92); } }
+@keyframes roll-sp { to { transform: rotate(520deg); } }
+@keyframes roll-sh {
   0%   { opacity: 0; transform: translateX(-6px) scale(.3); }
   26%  { opacity: .9; transform: translateX(8px) scale(1.1); }
   46%  { opacity: .4; transform: translateX(22px) scale(.55); }
@@ -33,6 +35,82 @@
   86%  { opacity: .6; transform: translateX(54px) scale(.9); }
   100% { opacity: 0; transform: translateX(78px) scale(.9); }
 }
+
+/* 2. high: 제자리에서 높이 '통!' 솟구친 뒤 점점 짧게 4번 튀다 멈춤 */
+@keyframes high-mv {
+  0%   { transform: translate(0, 0); opacity: 0; animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  5%   { opacity: 1; }
+  30%  { transform: translate(0, -74px); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  52%  { transform: translate(0, 0);     animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  66%  { transform: translate(0, -26px); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  78%  { transform: translate(0, 0);     animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  87%  { transform: translate(0, -9px);  animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  94%  { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+@keyframes high-sq {
+  0% { transform: scale(1.3, .7); } 9% { transform: scale(.88, 1.14); } 14%, 49%, 57%, 76%, 80%, 92%, 96%, 100% { transform: scale(1, 1); }
+  52% { transform: scale(1.35, .66); } 78% { transform: scale(1.18, .82); } 94% { transform: scale(1.08, .92); }
+}
+@keyframes high-sp { to { transform: rotate(260deg); } }
+@keyframes high-sh {
+  0% { opacity: .9; transform: scale(1); } 30% { opacity: .22; transform: scale(.4); } 52% { opacity: .95; transform: scale(1.15); }
+  66% { opacity: .5; transform: scale(.65); } 78% { opacity: .85; transform: scale(1); } 87% { opacity: .6; transform: scale(.82); }
+  94% { opacity: .7; transform: scale(.95); } 100% { opacity: 0; transform: scale(.95); }
+}
+
+/* 3. shot: 바닥에 한 번 찍은 뒤 오른쪽 위로 슛처럼 날아가며 작아짐 */
+@keyframes shot-mv {
+  0%   { transform: translate(-4px, -44px) scale(1); opacity: 0; animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  6%   { opacity: 1; }
+  26%  { transform: translate(0, 0) scale(1); }
+  29%  { transform: translate(2px, -3px) scale(1); opacity: 1; animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+  78%  { opacity: 1; }
+  100% { transform: translate(132px, -104px) scale(.22); opacity: 0; }
+}
+@keyframes shot-sq { 0%, 23%, 40%, 100% { transform: scale(1, 1); } 26% { transform: scale(1.36, .66); } 31% { transform: scale(.88, 1.14); } }
+@keyframes shot-sp { to { transform: rotate(1000deg); } }
+@keyframes shot-sh { 0% { opacity: 0; transform: scale(.4); } 12% { opacity: .5; transform: scale(.6); } 26% { opacity: .95; transform: scale(1.12); } 36% { opacity: .25; transform: scale(.55); } 50%, 100% { opacity: 0; transform: scale(.3); } }
+
+/* 4. juggle: 같은 높이로 3번 리프팅한 뒤 마지막에 툭 떨어짐 */
+@keyframes juggle-mv {
+  0%   { transform: translate(-6px, -4px); opacity: 0; animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  4%   { opacity: 1; }
+  15%  { transform: translate(-3px, -54px); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  30%  { transform: translate(0, -6px);     animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  45%  { transform: translate(3px, -54px);  animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  60%  { transform: translate(0, -6px);     animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  75%  { transform: translate(-3px, -54px); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  90%  { transform: translate(0, 0);        animation-timing-function: cubic-bezier(0,.4,.5,1); }
+  93%  { transform: translate(2px, -5px);   animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  96%  { transform: translate(4px, 0); opacity: 1; }
+  100% { transform: translate(4px, 0); opacity: 0; }
+}
+@keyframes juggle-sq { 0%, 14%, 17%, 28%, 33%, 43%, 47%, 58%, 63%, 73%, 77%, 88%, 92%, 100% { transform: scale(1, 1); } 30% { transform: scale(1.1, .92); } 60% { transform: scale(1.1, .92); } 90% { transform: scale(1.3, .72); } 96% { transform: scale(1.06, .94); } }
+@keyframes juggle-sp { to { transform: rotate(520deg); } }
+@keyframes juggle-sh {
+  0% { opacity: 0; transform: scale(1); } 4% { opacity: .8; } 15% { opacity: .3; transform: scale(.55); } 30% { opacity: .85; transform: scale(1); }
+  45% { opacity: .3; transform: scale(.55); } 60% { opacity: .85; transform: scale(1); } 75% { opacity: .3; transform: scale(.55); }
+  90% { opacity: .95; transform: scale(1.1); } 96% { opacity: .8; transform: scale(1); } 100% { opacity: 0; transform: scale(1); }
+}
+
+/* 5. wall: 오른쪽으로 빠르게 굴러가다 보이지 않는 벽에 '통' 부딪혀 튕겨 돌아옴 */
+@keyframes wall-mv {
+  0%   { transform: translate(-30px, 0); opacity: 0; animation-timing-function: cubic-bezier(.4,0,.9,.7); }
+  8%   { opacity: 1; }
+  45%  { transform: translate(46px, 0); animation-timing-function: cubic-bezier(0,.5,.5,1); }
+  50%  { transform: translate(44px, 0); animation-timing-function: cubic-bezier(.3,.7,.5,1); }
+  68%  { transform: translate(18px, -20px); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  90%  { transform: translate(-10px, 0); opacity: 1; }
+  100% { transform: translate(-24px, 0); opacity: 0; }
+}
+@keyframes wall-sq { 0%, 43%, 62%, 100% { transform: scale(1, 1); } 48% { transform: scale(.66, 1.12); } 55% { transform: scale(1.1, .95); } 90% { transform: scale(1.12, .88); } 92% { transform: scale(1, 1); } }
+@keyframes wall-sp { 0% { transform: rotate(0); } 46% { transform: rotate(430deg); } 100% { transform: rotate(-240deg); } }
+@keyframes wall-sh {
+  0% { opacity: 0; transform: translateX(-30px); } 8% { opacity: .8; } 45% { opacity: .9; transform: translateX(46px); }
+  68% { opacity: .4; transform: translateX(18px) scale(.6); } 90% { opacity: .85; transform: translateX(-10px); } 100% { opacity: 0; transform: translateX(-24px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ucl-ball .b-move, .ucl-ball .b-squash, .ucl-ball .b-spin, .ucl-ball .b-shadow { animation: none; }
   .ucl-ball .b-move { transform: translate(0, 0); animation: b-fade .7s linear both; }
