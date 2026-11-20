@@ -10,5 +10,5 @@ __pycache__/
 *.key
 backup-*/
 
-# 저작물(로컬 전용 마스코트 이미지)은 저장소에 올리지 않는다
-public/assets/mascot/
+# 저작물(로컬 전용 공 이미지)은 저장소에 올리지 않는다
+public/assets/ball/
