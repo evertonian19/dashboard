@@ -4,3 +4,11 @@
 .cat-tabs .tab:hover { background: var(--zebra); color: var(--ink); }
 .cat-tabs .tab[aria-current="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
 .cat-tabs .tab small { margin-left: 4px; opacity: .75; font-weight: 500; }
+
+/* 글쓰기: 이미지 업로드 자리표시자 · 끌어다 놓기 · 임시저장 */
+.img-uploading { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--blue-soft); color: var(--accent-text); font-size: 13px; font-weight: 600; user-select: none; }
+.editor-body.over { outline: 2px dashed var(--blue); outline-offset: -6px; background: color-mix(in srgb, var(--blue-soft) 40%, var(--surface)); }
+.draft-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); font-size: 14px; font-weight: 600; }
+.draft-banner[hidden] { display: none; }
+.draft-banner small { flex: 1 1 100%; font-weight: 500; color: var(--ink-3); }
+.draft-status { margin-right: auto; align-self: center; font-size: 13px; }

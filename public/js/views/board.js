@@ -2,11 +2,12 @@
 import { api, jsonBody } from '../core/api.js';
 import { confirmDelete } from '../core/dialogs.js';
 import { $, esc, toast } from '../core/dom.js';
-import { fmtBytes, fmtDateTime } from '../core/format.js';
+import { fmtDateTime } from '../core/format.js';
 import { hooks } from '../core/hooks.js';
 import { icon } from '../core/icons.js';
-import { config, lifecycle } from '../core/state.js';
-import { acceptOf } from '../core/uploads.js';
+import { attachDraft } from './board-editor/draft.js';
+import { attachMarkdownShortcuts } from './board-editor/markdown.js';
+import { attachMedia } from './board-editor/media.js';
 
 /* ------------------------------------------------------------------
    Menu 3: 게시판 — 목록(#menu3) · 글쓰기(#menu3?write=1) · 글 보기(#menu3?post=ID)
@@ -146,6 +147,7 @@ async function boardWrite(root, menu, editId) {
         <input class="field title-field" id="postTitle" type="text" maxlength="200" placeholder="제목" aria-label="제목" autocomplete="off">
       </div>
       <p class="card-note write-note">카테고리는 목록에서 고르거나 새 이름을 적으면 새로 만들어져요. 비워 두면 미분류로 등록됩니다.</p>
+      <div class="draft-banner" id="draftBanner" hidden></div>
       <div class="editor">
         <div class="toolbar" id="toolbar" role="toolbar" aria-label="글자 서식">
           ${tool('bold', '굵게', '<b>가</b>')}
@@ -171,6 +173,7 @@ async function boardWrite(root, menu, editId) {
         <div class="editor-body post-body" id="postBody" contenteditable="true" role="textbox" aria-multiline="true" aria-label="본문" data-placeholder="내용을 입력하세요"></div>
       </div>
       <div class="form-actions">
+        <span class="draft-status muted" id="draftStatus" aria-live="polite"></span>
         <a class="btn btn-soft" href="${backHref}">취소</a>
         <button class="btn btn-blue" type="submit" id="postSave">${editing ? '저장' : '등록'}</button>
       </div>
@@ -189,36 +192,10 @@ async function boardWrite(root, menu, editId) {
     body.innerHTML = editing.body;   // 서버가 허용 태그만 남겨 저장한 HTML
   }
 
-  // 파일 선택 창을 여는 동안 본문의 커서 위치를 기억해 둡니다.
-  let savedRange = null;
-  const remember = () => {
-    const sel = getSelection();
-    if (sel.rangeCount && body.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange();
-  };
-  ['keyup', 'mouseup', 'blur', 'input'].forEach((ev) => body.addEventListener(ev, remember));
-  const insertHtml = (markup) => {
-    body.focus();
-    if (savedRange) { const sel = getSelection(); sel.removeAllRanges(); sel.addRange(savedRange); }
-    exec('insertHTML', markup);
-    remember();
-  };
-  const picker = document.createElement('input');
-  picker.type = 'file'; picker.hidden = true;
-  document.body.appendChild(picker);
-  lifecycle.cleanups.push(() => picker.remove());
-  const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
-  picker.addEventListener('change', async () => {
-    const file = picker.files[0];
-    const asImage = picker.dataset.mode === 'image';
-    picker.value = '';
-    if (!file) return;
-    try {
-      if (config.max_upload && file.size > config.max_upload) throw new Error(`파일이 너무 커요 (최대 ${fmtBytes(config.max_upload)})`);
-      const { file: saved } = await api(`/files?kind=attachment&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
-      insertHtml(asImage ? `<img src="/api/files/${saved.id}/raw" alt=""><br>`
-        : `<a href="/api/files/${saved.id}/raw?download">${esc(saved.name)}</a>&nbsp;`);
-    } catch (err) { toast(`${file.name}: ${err.message}`, true); }
-  });
+  const media = attachMedia(body, { exec, onChange: () => draft.touch() });
+  attachMarkdownShortcuts(body, exec);
+  const draft = attachDraft({ key: `board-draft:${editing ? editing.id : 'new'}`, body, editing });
+
   // 버튼을 눌러도 본문의 선택 영역이 풀리지 않게 합니다.
   $('#toolbar').addEventListener('mousedown', (e) => e.preventDefault());
   $('#toolbar').addEventListener('click', (e) => {
@@ -226,26 +203,21 @@ async function boardWrite(root, menu, editId) {
     if (!btn) return;
     body.focus();
     const { cmd, arg } = btn.dataset;
-    if (cmd === 'image' || cmd === 'file') {
-      remember();
-      picker.dataset.mode = cmd;
-      picker.accept = cmd === 'image' ? IMAGE_EXT.join(',') : acceptOf('attachment');
-      picker.click();
-    } else if (cmd === 'link') {
-      remember();
+    if (cmd === 'image' || cmd === 'file') media.openPicker(cmd);
+    else if (cmd === 'link') {
+      const ranged = media.reselect();
       let url = (prompt('링크 주소를 입력하세요', 'https://') || '').trim();
       if (!url || url === 'https://') return;
       if (!/^(https?:\/\/|mailto:)/i.test(url)) url = 'https://' + url;
-      if (savedRange && !savedRange.collapsed) { body.focus(); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(savedRange); exec('createLink', url); }
-      else insertHtml(`<a href="${esc(url)}">${esc(url)}</a>&nbsp;`);
+      if (ranged && media.reselect()) exec('createLink', url);
+      else media.insertHtml(`<a href="${esc(url)}">${esc(url)}</a>&nbsp;`);
     } else if (cmd === 'clear') { exec('removeFormat'); exec('formatBlock', 'div'); }
     else if (cmd === 'formatBlock' && document.queryCommandValue('formatBlock').toLowerCase() === arg) exec('formatBlock', 'div');
     else exec(cmd, arg || null);
   });
-  // 붙여넣기는 글자만 받습니다 (다른 사이트의 서식이 섞이지 않게).
-  body.addEventListener('paste', (e) => {
-    e.preventDefault();
-    exec('insertText', (e.clipboardData || window.clipboardData).getData('text/plain'));
+  // Ctrl+S: 브라우저 저장 창 대신 글을 등록(저장)한다
+  $('#postForm').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); $('#postForm').requestSubmit(); }
   });
 
   $('#postForm').addEventListener('submit', async (e) => {
@@ -257,6 +229,7 @@ async function boardWrite(root, menu, editId) {
     save.disabled = true;
     try {
       const { post } = await api(editing ? `/posts/${editing.id}` : '/posts', jsonBody({ title, body: body.innerHTML, category: $('#postCat').value.trim() }));
+      draft.finish();   // 저장됐으니 임시저장본은 지운다
       toast(editing ? '게시글을 수정했어요' : '게시글을 등록했어요');
       location.hash = `#menu3?post=${post.id}`;
     } catch (err) {
