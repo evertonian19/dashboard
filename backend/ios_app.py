@@ -3,9 +3,12 @@
 필드 이름은 Swift 모델(camelCase)을 따른다. ESPN 이 주지 않는 값(평점, 패스·태클 등)은 None 이며(선수 사진은 Wikidata/Commons 에서 보강)
 임의의 값으로 채우지 않는다. 가져오기에 실패하면 가짜 데이터 대신 오류를 돌려준다.
 """
+import json
 import threading
 import time
+import unicodedata
 import urllib.request
+from pathlib import Path
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -187,6 +190,141 @@ def squad(club_id=TEAM_ID):
     return {"clubID": club_id, "players": players, "topContributors": top, "coach": wikidata.head_coach(club_id, _club_name(club_id)), "season": data["season"]}
 
 
+# ---------------------------------------------------------------------------
+# 베스트 11 · 전술 (최근 리그 경기의 실제 선발 명단·경기 통계에서 계산)
+
+TACTIC_MATCHES = 5
+TACTIC_NOTES_FILE = Path(__file__).with_name("ios_tactics.json")
+POSSESSION_HI, POSSESSION_LO = 55.0, 45.0
+SHOTS_HI, CONCEDED_LO, SCORED_HI, PASS_HI = 15.0, 0.8, 2.0, 85.0
+
+
+def pick_xi(samples):
+    """samples(오래된 경기 → 최근 경기 순) → 주력 XI. 5경기에서 가장 많이 쓴 포메이션(동률이면 최근),
+    그 포메이션 경기 중 선발 11명의 '선발 횟수' 합이 가장 큰 경기(동률이면 최근)의 실제 선발을 쓴다."""
+    ok = [s for s in samples if s.get("formation") and len(s["starters"]) == 11 and all(p.get("grid") for p in s["starters"])]
+    if not ok:
+        return None
+    starts = {}
+    for s in samples:
+        for p in s["starters"]:
+            if p["id"] is not None:
+                starts[p["id"]] = starts.get(p["id"], 0) + 1
+    counts = {}
+    for i, s in enumerate(ok):
+        c = counts.setdefault(s["formation"], [0, i])
+        c[0] += 1
+        c[1] = i
+    formation = max(counts, key=lambda f: tuple(counts[f]))
+    cands = [(sum(starts.get(p["id"], 0) for p in s["starters"]), i, s) for i, s in enumerate(ok) if s["formation"] == formation]
+    _, _, best = max(cands, key=lambda t: (t[0], t[1]))
+    xi = [dict(p, starts=starts.get(p["id"], 0)) for p in best["starters"]]
+    return {"formation": formation, "formationCounts": {f: c[0] for f, c in sorted(counts.items(), key=lambda kv: -kv[1][0])},
+            "xi": xi, "matchID": best.get("matchID")}
+
+
+def _avg(values):
+    values = [v for v in values if v is not None]
+    return round(sum(values) / len(values), 1) if values else None
+
+
+def tactical_profile(samples):
+    """경기 통계 평균과 성향 태그. 통계가 없는 항목은 None(만들어 내지 않는다)."""
+    stat = lambda key: _avg(s["stats"].get(key) for s in samples)
+    prof = {"matches": len(samples), "possession": stat("점유율"), "shots": stat("슈팅"), "shotsOnTarget": stat("유효슈팅"),
+            "passPct": stat("패스 성공률"), "tackles": stat("태클"), "fouls": stat("파울"), "corners": stat("코너킥"),
+            "scored": _avg(s["goalsFor"] for s in samples), "conceded": _avg(s["goalsAgainst"] for s in samples)}
+    tags = []
+    if prof["possession"] is not None:
+        if prof["possession"] >= POSSESSION_HI:
+            tags.append("점유 지향")
+        elif prof["possession"] <= POSSESSION_LO:
+            tags.append("역습·직선적")
+    if prof["shots"] is not None and prof["shots"] >= SHOTS_HI:
+        tags.append("슈팅 많음")
+    if prof["passPct"] is not None and prof["passPct"] >= PASS_HI:
+        tags.append("패스 정교")
+    if prof["scored"] is not None and prof["scored"] >= SCORED_HI:
+        tags.append("다득점")
+    if prof["conceded"] is not None and prof["conceded"] <= CONCEDED_LO:
+        tags.append("단단한 수비")
+    prof["tags"] = tags
+    return prof
+
+
+def profile_sentences(formation, counts, prof):
+    """프로필 수치만으로 만든 설명 문장(해설 파일이 없는 구단용)."""
+    out = []
+    if formation:
+        total = sum(counts.values()) or 1
+        out.append("최근 %d경기 중 %d경기에서 %s 포메이션을 썼습니다." % (total, counts.get(formation, 0), formation))
+    p = prof
+    if p["possession"] is not None:
+        style = "공을 오래 소유하며 경기를 주도하는 편입니다." if p["possession"] >= POSSESSION_HI else (
+            "점유를 내주고 빠르게 전환하는 편입니다." if p["possession"] <= POSSESSION_LO else "상대와 비슷한 균형형입니다.")
+        out.append("평균 점유율 %.1f%% — %s" % (p["possession"], style))
+    if p["shots"] is not None and p["shotsOnTarget"] is not None:
+        out.append("경기당 슈팅 %.1f개(유효 %.1f개)를 시도합니다." % (p["shots"], p["shotsOnTarget"]))
+    if p["scored"] is not None and p["conceded"] is not None:
+        out.append("경기당 %.1f득점·%.1f실점입니다." % (p["scored"], p["conceded"]))
+    return out
+
+
+def _norm_name(s):
+    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c)).casefold().strip()
+
+
+def tactic_notes(club_id, coach, path=None):
+    """직접 쓴 전술 해설. 해설을 쓴 감독이 현재 감독과 같을 때만 보여 준다(감독이 바뀌면 낡은 해설이므로 숨김)."""
+    try:
+        data = json.loads((path or TACTIC_NOTES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, False
+    note = data.get(str(club_id))
+    if not isinstance(note, dict):
+        return None, False
+    if coach and _norm_name(note.get("coach")) == _norm_name(coach):
+        return note, False
+    return None, bool(coach)          # 감독을 확인할 수 없으면(None) 해설도 내지 않는다
+
+
+def _sample(match, club_id):
+    d = espn.detail(match)
+    side = "home" if match["home"]["id"] == club_id else "away"
+    lu = next((x for x in d["lineups"] if x["homeAway"] == side), None)
+    if not lu:
+        return None
+    mine, theirs = (match["homeGoals"], match["awayGoals"]) if side == "home" else (match["awayGoals"], match["homeGoals"])
+    opp = match["away"] if side == "home" else match["home"]
+    return {"matchID": match["id"], "kickoff": match["kickoff"], "opponent": opp["shortName"], "formation": lu["formation"],
+            "starters": lu["starters"], "goalsFor": mine, "goalsAgainst": theirs,
+            "stats": {s["label"]: s[side] for s in d["stats"]}}
+
+
+def tactics(club_id=TEAM_ID):
+    done = [m for m in espn.schedule(club_id) if m["phase"] == "finished"][-TACTIC_MATCHES:]
+    samples = []
+    for m in done:
+        try:
+            s = _sample(m, club_id)
+        except Exception:
+            s = None
+        if s:
+            samples.append(s)
+    if not samples:
+        raise RuntimeError("최근 경기 라인업을 찾지 못했습니다.")
+    picked = pick_xi(samples)
+    prof = tactical_profile(samples)
+    coach = wikidata.head_coach(club_id, _club_name(club_id))
+    notes, stale = tactic_notes(club_id, coach)
+    formation = picked["formation"] if picked else None
+    counts = picked["formationCounts"] if picked else {}
+    return {"clubID": club_id, "formation": formation, "formationCounts": counts, "xi": picked["xi"] if picked else [],
+            "xiMatchID": picked["matchID"] if picked else None, "coach": coach, "profile": prof,
+            "summary": profile_sentences(formation, counts, prof), "notes": notes, "notesStale": stale,
+            "matchesUsed": [{"id": s["matchID"], "opponent": s["opponent"], "kickoff": s["kickoff"]} for s in samples]}
+
+
 def clubs():
     return espn.clubs()
 
@@ -355,6 +493,10 @@ def warm(passes=4, pause=15, rest=600):
         for cid in ids:
             try:
                 squad(cid)
+            except Exception:
+                pass
+            try:
+                tactics(cid)
             except Exception:
                 pass
             time.sleep(pause)

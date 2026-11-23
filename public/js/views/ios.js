@@ -51,7 +51,7 @@ const panel = (head, inner, cls = '') => `<section class="fmp ${cls}">${head ? `
 const err = (msg) => panel('', `<p class="p-dim">${esc(msg)}</p>`);
 
 /* ---------------- 상태 (앱의 AppModel) ---------------- */
-const model = { overview: null, matches: null, squad: null, clubs: null, standings: null, news: null, diag: null, details: {}, rosters: {} };
+const model = { overview: null, matches: null, squad: null, clubs: null, standings: null, news: null, diag: null, details: {}, rosters: {}, tactics: {} };
 const nav = { tab: 'home', stack: [], fixtureFilter: 'all', sort: 'pos', tabs: {} };
 
 async function loadAll() {
@@ -60,6 +60,7 @@ async function loadAll() {
     ['/ios/overview', '/ios/matches', '/ios/squad', '/ios/clubs', '/ios/standings', '/ios/news', '/ios/diagnostics'].map(get));
   Object.assign(model, { overview, matches, squad, clubs, standings, news, diag });
   if (squad && !squad.__error) { model.rosters[TEAM] = squad; watchPhotos(TEAM); }
+  ensureTactics(TEAM);
 }
 const bad = (x) => !x || x.__error;
 const failMsg = (x) => (x && x.__error) || '불러오지 못했어요';
@@ -165,10 +166,51 @@ function rosterTable(players, ctx = 'squad') {
       <td>${dash(st(p, 'appearances'))}</td><td class="${st(p, 'goals') ? 'fm-hl' : ''}">${dash(st(p, 'goals'))}</td><td class="${st(p, 'assists') ? 'fm-hl' : ''}">${dash(st(p, 'assists'))}</td></tr>`).join('')}</tbody></table>`;
 }
 
+/* 베스트 11 (최근 5경기 주력 XI) 포메이션: 선수 칸은 골·도움만, 누르면 선수 상세 */
+function xiPitch(xi, roster) {
+  const rows = {};
+  xi.forEach((x) => { const [r, c] = (x.grid || '9:9').split(':').map(Number); (rows[r] ||= []).push({ ...x, c }); });
+  const lines = Object.keys(rows).map(Number).sort((a, b) => b - a).map((r) =>
+    `<div class="pl">${rows[r].sort((a, b) => a.c - b.c).map((x) => {
+      const p = (roster.players || []).find((q) => q.id === x.id);
+      const g = p ? st(p, 'goals') : null, a = p ? st(p, 'assists') : null;
+      const inner = `<i>${x.number ?? ''}</i><small>${esc(x.name.split(' ').pop())}</small><em class="ga${g || a ? '' : ' z'}">⚽${dash(g)} 🅰${dash(a)}</em>`;
+      return p ? `<button class="pp xp" data-go="player" data-id="${p.id}">${inner}</button>` : `<span class="pp xp">${inner}</span>`;
+    }).join('')}</div>`).join('');
+  return `<div class="pitch">${lines}</div>`;
+}
+
+function tacticsPanel(t) {
+  const p = t.profile, kv = (l, v, u = '') => (v == null ? '' : `<div><small>${l}</small><b>${v}${u}</b></div>`);
+  const kpi = `<div class="tac-kpi">${kv('점유율', p.possession, '%')}${kv('슈팅', p.shots)}${kv('유효슈팅', p.shotsOnTarget)}${kv('패스 성공', p.passPct, '%')}${kv('득점', p.scored)}${kv('실점', p.conceded)}</div>`;
+  const tags = p.tags.length ? `<div class="p-tags"><small>성향</small>${p.tags.map((x) => `<b>${esc(x)}</b>`).join('')}</div>` : '';
+  const fm = Object.entries(t.formationCounts).map(([f, n]) => `${esc(f)} ${n}회`).join(' · ');
+  const n = t.notes;
+  const notes = n ? `<p class="tac-sum">${esc(n.summary)}</p><ul class="tac-pts">${n.points.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="p-note">해설: 직접 작성(${esc(n.written)} 기준 · ${esc(n.coach)} 감독 체제).</p>`
+    : t.notesStale ? '<p class="p-note">감독이 바뀐 것으로 보여 작성해 둔 해설은 숨겼어요(갱신 필요).</p>'
+      : '<p class="p-note">이 구단의 직접 쓴 해설은 아직 없어요. 아래는 경기 통계로 자동 정리한 내용입니다.</p>';
+  return panel(`주요 전술${t.coach ? ` · ${esc(t.coach)}` : ''}`, `${tags}${kpi}${notes}<ul class="tac-pts">${t.summary.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <p class="p-note">사용 포메이션: ${fm || '-'}. 최근 ${t.matchesUsed.length}경기(${t.matchesUsed.map((m) => esc(m.opponent)).join('·')}) ESPN 경기 요약 기준.</p>`);
+}
+
+function teamSquadHtml(id, roster) {
+  const t = model.tactics[id];
+  const head = `${roster.coach ? ` · 감독 ${esc(roster.coach)}` : ''}`;
+  if (!t || t.__error || !t.xi.length) {
+    const note = !t ? '베스트 11 불러오는 중…' : `베스트 11 을 만들지 못했어요(${esc(t.__error || '최근 라인업 없음')}).`;
+    return panel(`스쿼드 · ${roster.players.length}명${head}`, `<p class="p-note">${note}</p>${rosterTable(roster.players)}`);
+  }
+  const used = new Set(t.xi.map((x) => x.id));
+  const bench = roster.players.filter((p) => !used.has(p.id));
+  return panel(`베스트 11 · ${esc(t.formation)}`, `${xiPitch(t.xi, roster)}<p class="p-note">최근 ${t.matchesUsed.length}경기 주력 선발(선수를 누르면 상세) · 골·도움은 시즌 누적</p>`)
+    + panel(`후보 · ${bench.length}명${head}`, rosterTable(bench)) + tacticsPanel(t);
+}
+
 function squadView() {
   const sq = model.rosters[TEAM];
   if (!sq) return err(failMsg(model.squad));
-  return panel(`1군 스쿼드 · ${sq.players.length}명${sq.coach ? ` · 감독 ${esc(sq.coach)}` : ''}`, rosterTable(sq.players));
+  return teamSquadHtml(TEAM, sq);
 }
 
 function radarSvg(metrics) {
@@ -242,7 +284,7 @@ function clubView(id) {
   const roster = model.rosters[id];
   const hero = panel('', `<div class="nx"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
     ${row ? `<p class="p-when">${row.rank}위 · 승점 ${row.points} · ${row.won}승 ${row.drawn}무 ${row.lost}패</p>` : ''}`, 'fm-hero');
-  const body = roster && roster.__error ? err(roster.__error) : roster ? panel(`스쿼드 · ${roster.players.length}명${roster.coach ? ` · 감독 ${esc(roster.coach)}` : ''}`, rosterTable(roster.players)) : err('스쿼드 불러오는 중…');
+  const body = roster && roster.__error ? err(roster.__error) : roster ? teamSquadHtml(id, roster) : err('스쿼드 불러오는 중…');
   return hero + body;
 }
 
@@ -296,6 +338,13 @@ async function ensureRoster(id) {
   if (current().view === 'club' && current().id === id) renderPhone();
 }
 
+async function ensureTactics(id) {
+  if (model.tactics[id] && !model.tactics[id].__error) return;
+  model.tactics[id] = await api(`/ios/tactics?club=${id}`).catch((e) => ({ __error: e.message || '전술을 불러오지 못했어요' }));
+  const c = current();
+  if ((c.view === 'club' && c.id === id) || (c.view === 'squad' && id === TEAM) || (!nav.stack.length && nav.tab === 'squad' && id === TEAM)) renderPhone();
+}
+
 async function go(view, id) {
   nav.stack.push({ view, id });
   nav.tabs.player = nav.tabs.match = 'ov';
@@ -304,7 +353,7 @@ async function go(view, id) {
     model.details[id] = await api(`/ios/match/${id}`).catch((e) => ({ __error: e.message }));
     if (current().view === 'match' && current().id === id) renderPhone();
   }
-  if (view === 'club') ensureRoster(id);
+  if (view === 'club') { ensureRoster(id); ensureTactics(id); }
 }
 
 /* ---------------- 개발 현황 ---------------- */
@@ -347,7 +396,7 @@ function mountIos() {
     else if (el.dataset.sub) { const [k, v] = el.dataset.sub.split(':'); nav.tabs[k] = v; nav.keepScroll = false; renderPhone(); }
     else if (el.dataset.sort) { nav.sort = el.dataset.sort; nav.keepScroll = true; renderPhone(); }
   });
-  $('#iosReload')?.addEventListener('click', () => { model.details = {}; start(); });
+  $('#iosReload')?.addEventListener('click', () => { model.details = {}; model.tactics = {}; start(); });
   $('#iosHome')?.addEventListener('click', () => { nav.tab = 'home'; nav.stack = []; renderPhone(); });
   every(1000, () => document.querySelectorAll('#phoneScreen .p-count').forEach((n) => { n.textContent = countdown(n.dataset.kick) || '곧 시작'; }));
 }

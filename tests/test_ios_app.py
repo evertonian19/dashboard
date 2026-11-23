@@ -388,6 +388,54 @@ class PhotoCacheTests(unittest.TestCase):
         self.assertEqual(scheduled, [(9, ["premierleague"])])
 
 
+def _xi(ids, formation="4-4-2", match=1):
+    return {"matchID": match, "formation": formation, "goalsFor": 1, "goalsAgainst": 0, "stats": {},
+            "starters": [{"id": i, "name": "P%d" % i, "grid": "%d:1" % (n + 1)} for n, i in enumerate(ids)]}
+
+
+class TacticsTests(unittest.TestCase):
+    def test_pick_xi_majority_formation_and_most_started_match(self):
+        core = list(range(1, 12))
+        samples = [_xi(core, "4-4-2", 1), _xi(core[:10] + [20], "4-3-3", 2), _xi(core, "4-4-2", 3), _xi(core[:9] + [21, 22], "4-4-2", 4)]
+        r = app.pick_xi(samples)
+        self.assertEqual(r["formation"], "4-4-2")
+        self.assertEqual(r["formationCounts"], {"4-4-2": 3, "4-3-3": 1})
+        self.assertEqual(r["matchID"], 3)                       # 선발 횟수 합이 같은 1·3 중 최근
+        self.assertEqual({p["id"]: p["starts"] for p in r["xi"]}[1], 4)
+
+    def test_pick_xi_ignores_incomplete_lineups(self):
+        self.assertIsNone(app.pick_xi([_xi(list(range(1, 10)))]))
+
+    def test_profile_averages_and_tags(self):
+        mk = lambda poss, gf, ga: {"stats": {"점유율": poss, "슈팅": 16}, "goalsFor": gf, "goalsAgainst": ga}
+        p = app.tactical_profile([mk(60, 2, 0), mk(58, 3, 1), {"stats": {}, "goalsFor": 1, "goalsAgainst": 0}])
+        self.assertEqual(p["possession"], 59.0)
+        self.assertIsNone(p["passPct"])
+        self.assertEqual(p["scored"], 2.0)
+        self.assertEqual(set(p["tags"]), {"점유 지향", "슈팅 많음", "다득점", "단단한 수비"})
+        self.assertEqual(app.tactical_profile([{"stats": {}, "goalsFor": 0, "goalsAgainst": 0}])["possession"], None)
+
+    def test_notes_only_for_matching_coach(self):
+        self.assertEqual(app.tactic_notes(359, "Mikel Arteta")[0]["coach"], "Mikel Arteta")
+        self.assertEqual(app.tactic_notes(359, "Someone Else"), (None, True))     # 감독 교체 → 숨김 + 갱신 필요
+        self.assertEqual(app.tactic_notes(359, None), (None, False))
+        self.assertEqual(app.tactic_notes(368, "David Moyes"), (None, False))     # 해설 없는 구단
+        self.assertEqual(app.tactic_notes(331, "Fabian Hurzeler")[1], False)      # 악센트 차이 허용
+
+    def test_notes_file_is_valid(self):
+        data = json.load(open(app.TACTIC_NOTES_FILE, encoding="utf-8"))
+        for k, v in data.items():
+            if k.startswith("_"):
+                continue
+            self.assertTrue(k.isdigit())
+            self.assertTrue(v["coach"] and v["summary"] and v["points"] and v["written"])
+
+    def test_sample_lineup_from_fixture(self):
+        lu = espn.parse_lineups(load("summary"))[0]
+        self.assertEqual(len(lu["starters"]), 11)
+        self.assertTrue(all(p["grid"] for p in lu["starters"]))
+
+
 class StatusTests(unittest.TestCase):
     def test_status_has_core_numbers(self):
         s = ios_status()
