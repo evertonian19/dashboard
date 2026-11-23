@@ -15,7 +15,7 @@ FEATURES = [
     ("일정", "월별 일정 표 · 예정/결과 탭", ["EvFeatures/FixturesView.swift"], False),
     ("경기 상세", "통계 비교 · 포메이션 라인업 · 주요 장면", ["EvFeatures/MatchDetailView.swift", "EvFeatures/PitchLineupView.swift",
                                                   "EvFeatures/EventTimeline.swift"], True),
-    ("스쿼드", "FM 식 선수 표(정렬 헤더)", ["EvFeatures/SquadView.swift", "EvFeatures/Shared.swift"], False),
+    ("스쿼드", "선수 표(정렬 헤더)", ["EvFeatures/SquadView.swift", "EvFeatures/Shared.swift"], False),
     ("선수 상세", "개요·기록·정보 탭 · 실스탯 기반 강점/레이더", ["EvFeatures/PlayerDetailView.swift", "EvDesign/RadarChart.swift"], True),
     ("리그", "순위표 · 20개 구단 · 구단 로스터", ["EvFeatures/LeagueView.swift", "EvFeatures/StandingsView.swift",
                                        "EvFeatures/ClubDetailView.swift"], False),
@@ -26,7 +26,7 @@ FEATURES = [
     ("신상 교차 검증", "ESPN 신상 오류를 Wikidata·수동 보정으로 바로잡음", ["EvNetworking/PlayerBio.swift"], True),
     ("API-Football 연동(선택)", "키가 있으면 사진·평점 포함 데이터로 전환", ["EvNetworking/APIFootballService.swift",
                                                          "EvNetworking/Mapping.swift", "EvNetworking/DTO.swift"], True),
-    ("FM 디자인 시스템", "패널·밑줄 탭·속성 색 막대·포지션 배지", ["EvDesign/Theme.swift", "EvDesign/Components.swift"], False),
+    ("에버턴 브랜드 디자인 시스템", "로열 블루 상단 바·흰 카드·아이콘 탭·속성 색 막대·포지션 배지", ["EvDesign/Theme.swift", "EvDesign/Components.swift"], False),
     ("캐시·이미지", "디스크 캐시(오프라인 대비) · 이미지 캐시", ["EvNetworking/DiskCache.swift", "EvNetworking/ImageCache.swift"], False),
 ]
 

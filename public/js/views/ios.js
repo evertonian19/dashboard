@@ -5,6 +5,15 @@ import { fmtDateTime, numFmt } from '../core/format.js';
 import { every } from '../core/state.js';
 
 const TABS = [['home', '개요'], ['fixtures', '일정'], ['league', '리그'], ['squad', '스쿼드'], ['news', '뉴스']];
+// 하단 탭 아이콘 (앱의 SF Symbol: house / calendar / trophy / person.3 / newspaper 와 같은 의미)
+const TAB_ICONS = {
+  home: '<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-5.5H9V20H5a1 1 0 0 1-1-1z"/>',
+  fixtures: '<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  league: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a2.5 2.5 0 0 0 3 3.5M16 6h3a2.5 2.5 0 0 1-3 3.5M12 13v4M8.5 20h7M10 17h4"/>',
+  squad: '<circle cx="12" cy="8.5" r="3"/><path d="M6 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="5.5" cy="10" r="2"/><circle cx="18.5" cy="10" r="2"/>',
+  news: '<rect x="4" y="5" width="13" height="14" rx="2"/><path d="M17 9h3v8.5a1.5 1.5 0 0 1-3 0M7.5 9h6M7.5 12.5h6M7.5 16h4"/>',
+};
+const tabIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${TAB_ICONS[k]}</svg>`;
 const TEAM = 368;                      // ESPN 의 에버턴 ID (앱 EvertonInfo 와 같은 값)
 const kst = (iso, o) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', ...o }).format(new Date(iso));
 const dayText = (iso) => kst(iso, { month: 'long', day: 'numeric', weekday: 'short' });
@@ -262,7 +271,7 @@ function renderPhone() {
   const keep = $('#pBody')?.scrollTop || 0;
   scr.innerHTML = `<header class="fm-nav">${nav.stack.length ? '<button data-back aria-label="뒤로">‹</button>' : '<span class="fm-badge">EFC</span>'}<b>${esc(VIEW_TITLE[cur.view])}</b><span class="fm-src">ESPN</span></header>
     <div class="p-body" id="pBody">${body}</div>
-    <nav class="p-tabs">${TABS.map(([k, t]) => `<button data-tab="${k}" class="${nav.tab === k ? 'on' : ''}">${t}</button>`).join('')}</nav>`;
+    <nav class="p-tabs">${TABS.map(([k, t]) => `<button data-tab="${k}" class="${nav.tab === k ? 'on' : ''}">${tabIcon(k)}<span>${t}</span></button>`).join('')}</nav>`;
   if (keep && nav.keepScroll) { $('#pBody').scrollTop = keep; }
   nav.keepScroll = false;
 }
