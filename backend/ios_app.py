@@ -164,6 +164,7 @@ def _club_name(club_id):
 
 
 def squad(club_id=TEAM_ID):
+    # 감독은 ESPN 로스터의 coach 가 수년 전 값(예: 맨유 무리뉴)이라 쓰지 않고, Wikidata 의 현재 감독을 쓴다.
     data = espn.roster(club_id)
     # 신상(생년월일·키·국적)은 ESPN 이 동명이인과 섞이는 경우가 있어 Wikidata·수동 보정으로 교차 검증한다.
     players = wikidata.enrich(data["players"], club_id, _club_name(club_id))
@@ -183,7 +184,7 @@ def squad(club_id=TEAM_ID):
     players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games),
                     contribution=(p["stats"]["goals"] + p["stats"]["assists"]) if p["stats"] else 0) for p in data["players"]]
     top = [p["id"] for p in top_contributors(data["players"])]
-    return {"clubID": club_id, "players": players, "topContributors": top, "coach": data["coach"], "season": data["season"]}
+    return {"clubID": club_id, "players": players, "topContributors": top, "coach": wikidata.head_coach(club_id, _club_name(club_id)), "season": data["season"]}
 
 
 def clubs():

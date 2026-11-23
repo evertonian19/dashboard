@@ -27,7 +27,8 @@ OVERRIDE_FILE = os.path.join(HERE, "ios_player_overrides.json")   # 저장소에
 TTL = 7 * 86400
 FOOTBALLER = "Q937857"
 EVERTON_ESPN_ID = 368
-KNOWN_TEAMS = {368: "Q5794"}          # ESPN 구단 id → Wikidata QID (Everton F.C.). 그 외는 이름으로 찾아 캐시
+KNOWN_TEAMS = {368: "Q5794", 337: "Q19571", 384: "Q19467"}   # ESPN 구단 id → Wikidata QID (Everton·Brentford·Crystal Palace; 이름 검색이 모호한 구단). 그 외는 이름으로 찾아 캐시
+COACH_TTL = 6 * 3600                  # 감독 교체가 반영되도록 선수 신상(7일)보다 짧게
 CM_UNITS = {"Q174728": 1.0, "Q11573": 100.0}   # centimetre, metre
 HOME_NATIONS = {"england", "scotland", "wales", "northern ireland"}
 _lock = threading.Lock()
@@ -280,6 +281,48 @@ def team_qid(espn_id, club_name):
         return None
     try:
         return _cached("team:%s" % espn_id, lookup, ttl=30 * 86400)
+    except Exception:
+        return None
+
+
+
+# ---------------------------------------------------------------------------
+# 현재 감독 (ESPN 로스터의 coach 는 수년 전 값이라 쓰지 않는다)
+
+def pick_coach(claims):
+    """구단 엔티티의 감독(P286) 클레임 중 현재 감독의 QID. 종료일이 없고 폐기되지 않은 것 중 preferred → 가장 늦게 시작한 사람."""
+    best = None
+    for c in claims or []:
+        if c.get("rank") == "deprecated" or (c.get("qualifiers") or {}).get("P582"):
+            continue
+        v = ((c.get("mainsnak") or {}).get("datavalue") or {}).get("value")
+        if not isinstance(v, dict) or not v.get("id"):
+            continue
+        start = ""
+        for q in (c.get("qualifiers") or {}).get("P580", []):
+            t = ((q.get("datavalue") or {}).get("value") or {}).get("time")
+            if t:
+                start = t
+        key = (c.get("rank") == "preferred", start)
+        if best is None or key > best[0]:
+            best = (key, v["id"])
+    return best[1] if best else None
+
+
+def head_coach(espn_id, club_name):
+    """구단의 현재 감독 이름(영어). 모르면 None — 틀린 값을 만들어 내지 않는다."""
+    def fetch():
+        qid = team_qid(espn_id, club_name)
+        if not qid:
+            return None
+        club = (_api(action="wbgetentities", ids=qid, props="claims").get("entities") or {}).get(qid) or {}
+        coach = pick_coach((club.get("claims") or {}).get("P286"))
+        if not coach:
+            return None
+        ent = (_api(action="wbgetentities", ids=coach, props="labels", languages="en").get("entities") or {}).get(coach) or {}
+        return ((ent.get("labels") or {}).get("en") or {}).get("value")
+    try:
+        return _cached("coach:%s" % espn_id, fetch, ttl=COACH_TTL)
     except Exception:
         return None
 

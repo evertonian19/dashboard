@@ -202,6 +202,48 @@ def imageinfo(title, license_short, artist="<a href='x'>Jane &amp; Co</a>"):
                             "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0"}}}]}
 
 
+class CoachTests(unittest.TestCase):
+    @staticmethod
+    def claim(qid, start=None, end=None, rank="normal"):
+        q = {}
+        if start:
+            q["P580"] = [{"datavalue": {"value": {"time": start}}}]
+        if end:
+            q["P582"] = [{"datavalue": {"value": {"time": end}}}]
+        return {"rank": rank, "qualifiers": q, "mainsnak": {"datavalue": {"value": {"id": qid}}}}
+
+    def test_ended_coaches_are_ignored(self):
+        self.assertIsNone(wikidata.pick_coach([self.claim("Q1", "+2010-01-01T00:00:00Z", "+2013-05-01T00:00:00Z")]))
+        self.assertIsNone(wikidata.pick_coach([]))
+        self.assertIsNone(wikidata.pick_coach(None))
+
+    def test_latest_start_wins_and_deprecated_is_skipped(self):
+        got = wikidata.pick_coach([
+            self.claim("Q_OLD", "+2018-12-01T00:00:00Z"), self.claim("Q_NEW", "+2026-11-18T00:00:00Z"),
+            self.claim("Q_BAD", "+2027-01-01T00:00:00Z", rank="deprecated")])
+        self.assertEqual(got, "Q_NEW")
+
+    def test_preferred_beats_later_start(self):
+        got = wikidata.pick_coach([self.claim("Q_PREF", "+2020-01-01T00:00:00Z", rank="preferred"), self.claim("Q_LATE", "+2026-01-01T00:00:00Z")])
+        self.assertEqual(got, "Q_PREF")
+
+    def test_squad_uses_wikidata_coach_not_espn(self):
+        roster = {"players": [], "coach": "Jose Mourinho", "season": 2026}
+        saved = (app.espn.roster, app.wikidata.enrich, app.wikidata.head_coach, app.wikidata.load_overrides, app.plphotos.candidates, app.photocache.apply, app._club_name, app._team_games)
+        try:
+            app.espn.roster = lambda cid=app.TEAM_ID: roster
+            app.wikidata.enrich = lambda players, *a, **k: players
+            app.wikidata.head_coach = lambda cid, name: "Mauricio Pochettino"
+            app.wikidata.load_overrides = lambda: {}
+            app.plphotos.candidates = lambda *a, **k: {}
+            app.photocache.apply = lambda players, cands: players
+            app._club_name = lambda cid: "Manchester United"
+            app._team_games = lambda: None
+            self.assertEqual(app.squad(360)["coach"], "Mauricio Pochettino")
+        finally:
+            (app.espn.roster, app.wikidata.enrich, app.wikidata.head_coach, app.wikidata.load_overrides, app.plphotos.candidates, app.photocache.apply, app._club_name, app._team_games) = saved
+
+
 class PhotoTests(unittest.TestCase):
     def test_free_license_filter(self):
         for ok in ("CC BY-SA 4.0", "CC BY 3.0", "CC0", "Public domain", "CC-BY-2.0", "Attribution"):
