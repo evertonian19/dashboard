@@ -21,7 +21,7 @@ from backend.db import db
 # redirects to /login.html and every API call answers 401.
 AUTH_FILE = os.path.join(DATA, "auth.json")
 SESSION_TTL = 6 * 3600
-PUBLIC_PATHS = {"/login.html", "/js/login.js"}   # plus every stylesheet under /css/ (see is_public)
+PUBLIC_PATHS = {"/login.html", "/js/login.js", "/assets/ball/icon.png"}   # plus every stylesheet under /css/ (see is_public)
 LOGIN_MAX_FAILURES, LOGIN_LOCK_SECONDS = 5, 300
 _login_failures = []
 _login_lock = threading.Lock()
