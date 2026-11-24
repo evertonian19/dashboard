@@ -1,48 +1,42 @@
 # dashboard
 
-개인용 대시보드. 파이썬 표준 라이브러리만 쓰는 서버(의존성 설치 없음)와 빌드 과정이 없는 바닐라 JS 프론트엔드로 이루어져 있습니다.
-메인 화면(할 일 · 메모 · 즐겨찾기 · 날씨 · 서버 상태 · Claude 사용량), 다이어그램, 게시판, 문서, 메일 확인, 설정을 한곳에서 봅니다.
-화면은 Football Manager 27의 상단 메뉴 바 구조를 따랐습니다.
+Personal dashboard. A stdlib-only Python server (no dependencies to install) and a vanilla JS frontend (no build step).
+Home (todos, notes, favorites, weather, server status, Claude usage), diagrams, board, documents, mail check and settings in one place, laid out like the Football Manager 27 top menu bar.
 
-## 구조
+## Layout
 
 ```
-server.py                 진입점 (서버 시작, set-login 명령, 백그라운드 작업 시작)
-backend/                  서버: 기능별 모듈
-  config.py db.py         경로·제한·파일 종류 / SQLite 연결·스키마·공통 도구
-  bootstrap.py            시작 시 초기화 (테이블 생성 + 오래된 휴지통 비우기)
-  auth.py                 로그인 (PBKDF2 해시, 세션 쿠키, 시도 횟수 제한, 공개 경로)
-  sanitize.py             게시글 HTML 허용 목록 정리
-  trash.py pdf.py filenames.py
-  mail.py weather.py markets.py everton.py ios_app.py ios_status.py oci.py system.py usage.py jobs.py
-  api/                    HTTP 처리
-    handler.py            라우팅 표, 로그인/세션, 정적 파일
-    board.py files.py todos.py mail.py settings.py weather.py summary.py   기능별 Mixin
-public/                   브라우저에 내려가는 파일 (login.* 를 뺀 나머지는 로그인 필요)
-  index.html login.html
-  js/
-    main.js               진입점 (type="module")
-    core/                 api, dom, format, state, registry(메뉴 목록), hooks, uploads …
-    views/                메뉴별 화면: home todos usage settings diagrams documents board mail empty
-    shell/                메뉴 연결, 좌측/상단 메뉴, 화면 전환, 레이아웃, 테마, 검색, 세션, 시장 지수 띠(markets: 상단에 코스피·코스닥·나스닥·엔비디아 흐름과 수치, 종목은 `backend/markets.py` 의 `SYMBOLS`), 우측 레일(rail: 1760px 이상에서 에버턴 다음 경기·환율·금·은·구리, 종목은 `RAIL_SYMBOLS`)
-  css/                    base → layout → components → views → fm-theme → responsive → fm-layout → favorites → board → brand → markets → rail → ios
-tests/smoke_api.py        API 회귀 스크립트
+server.py        entry point (server, set-login command, background jobs)
+backend/         server modules
+  api/           HTTP layer: handler.py (routing, login/session, static files) + per-feature mixins
+  auth.py db.py config.py bootstrap.py sanitize.py ...
+public/          served files (everything except login.* requires login)
+  js/            main.js, core/ (api, state, registry), views/ (one per menu), shell/ (menus, layout, theme, search, markets, rail)
+  css/           base -> layout -> components -> views -> fm-theme -> responsive -> fm-layout -> favorites -> board -> brand -> markets -> rail -> ios
+tests/           smoke_api.py, test_ios_app.py
 ```
 
-### 새 메뉴 추가
-1. `public/js/views/` 에 `renderXxx(menu)`(화면 틀 HTML)와 `mountXxx(menu, params)`(데이터 채우기)를 만듭니다.
-2. `public/js/core/registry.js` 의 `MENUS` 에 `{ id, label, icon }` 를 추가합니다.
-3. `public/js/shell/menus.js` 의 `VIEWS` 에 `render` / `mount` 를 연결합니다.
+## Run
 
-뷰는 셸을 직접 import 하지 않습니다(순환 방지). 화면을 다시 그려야 하면 `core/hooks.js` 의 `hooks.show()` 를 씁니다.
+```bash
+python3 -c "import server; server.set_login('user', 'password')"   # create the login
+python3 server.py
+```
 
-### CSS 순서
-뒤에 오는 스타일시트가 앞의 규칙을 덮어쓰므로 `index.html` 과 `login.html` 의 `<link>` 순서를 바꾸면 안 됩니다.
+## Add a menu
 
-## 테스트
+1. Create `renderXxx(menu)` and `mountXxx(menu, params)` in `public/js/views/`.
+2. Add `{ id, label, icon }` to `MENUS` in `public/js/core/registry.js`.
+3. Wire `render` / `mount` into `VIEWS` in `public/js/shell/menus.js`.
 
-`tests/smoke_api.py` 는 고정된 API 호출을 실행하고 id·시각을 치환한 기록을 출력합니다. 두 버전의 기록을 `diff` 하면 리팩터링 전후 동작이 같은지 확인할 수 있습니다.
-**반드시 임시 데이터 디렉터리**에서 실행하세요 (글·파일 등을 만들고 지웁니다).
+Views never import the shell (avoids cycles); use `hooks.show()` from `core/hooks.js` to re-render.
+
+Keep the `<link>` order in `index.html` and `login.html`: later stylesheets override earlier ones.
+
+## Tests
+
+`tests/smoke_api.py` runs fixed API calls and prints a normalized log; `diff` two runs to verify a refactor kept behavior.
+Run it against a **temporary data directory** (it creates and deletes data):
 
 ```bash
 export DASHBOARD_DATA=/tmp/dash-test PORT=8102
@@ -51,10 +45,12 @@ python3 server.py &
 python3 tests/smoke_api.py http://127.0.0.1:8102 tester pw-12345-test > out.txt
 ```
 
-## 데이터와 비밀 정보
+iOS mockup: `python3 -m unittest tests.test_ios_app`
 
-계정 해시(`auth.json`), 메일 앱 비밀번호(`mail-accounts.json`), 데이터베이스, 업로드 파일은 모두 `data/` 에 저장되며 `.gitignore` 로 제외됩니다. 이 디렉터리는 저장소에 올리지 마세요.
+## Data
 
-## iOS 앱 메뉴 (Menu 8)
+Account hash, mail app passwords, the database and uploads live in `data/` and are git-ignored. Never commit it.
 
-`~/ios_everton` 앱의 개발 현황(커밋·모듈 규모·기능 체크리스트)과, 앱과 같은 샘플 데이터·계산 규칙을 옮긴 휴대폰 목업. `backend/ios_app.py` 가 `Sample.swift`/`Metrics.swift` 등을 Python 으로 옮긴 것이며 SwiftUI 렌더링·컴파일은 검증하지 않는다. 테스트: `python3 -m unittest tests.test_ios_app`
+## iOS app menu
+
+Development status of `~/ios_everton` (commits, module size, feature checklist) plus a phone mockup using the app's sample data and rules, ported to Python in `backend/ios_app.py`. SwiftUI rendering and compilation are not verified.
