@@ -7,11 +7,11 @@
   --surface:      #F4F5F7;   /* 패널 */
   --line:         #C9CDD6;
 
-  --blue:         #7A1FC2;   /* 주 강조색 */
-  --blue-hover:   #5F139B;
-  --blue-soft:    #E9DDF6;
-  --blue-glow:    #9A4BD8;
-  --accent-text:  #6A18AA;
+  --blue:         #5B6472;   /* 주 강조색 */
+  --blue-hover:   #464E5B;
+  --blue-soft:    #E1E4E9;
+  --blue-glow:    #7C8594;
+  --accent-text:  #4A5260;
 
   --ink:          #1A1D26;
   --ink-2:        #4A5163;
@@ -23,7 +23,7 @@
   --panel-head:   #2A2F3D;   /* 패널 제목 띠 */
   --panel-head-ink: #E6E9F0;
   --topbar:  #F4F5F7;
-  --pill-bg:  rgba(142, 43, 216, .22);
+  --pill-bg:  rgba(110, 119, 135, .22);
   --pill-ink: #FFFFFF;
   --zebra:    rgba(26, 29, 38, .035);
 
@@ -50,11 +50,11 @@
   --paper-deep:   #1A1F2B;
   --surface:      #1E2330;
   --line:         #2C3342;
-  --blue:         #8E2BD8;
-  --blue-hover:   #A445F0;
-  --blue-soft:    #2B2140;
-  --blue-glow:    #B06CF0;
-  --accent-text:  #C48CFF;
+  --blue:         #6F7887;
+  --blue-hover:   #838C9B;
+  --blue-soft:    #262B34;
+  --blue-glow:    #A6AEBB;
+  --accent-text:  #C3CAD4;
   --ink:          #E6E9F0;
   --ink-2:        #AEB5C4;
   --ink-3:        #7C8496;
@@ -64,7 +64,7 @@
   --panel-head:   #12151C;
   --panel-head-ink: #E6E9F0;
   --topbar:  #0F121A;
-  --pill-bg:  rgba(142, 43, 216, .28);
+  --pill-bg:  rgba(130, 139, 155, .28);
   --pill-ink: #FFFFFF;
   --zebra:    rgba(255, 255, 255, .025);
   --shadow: none;
