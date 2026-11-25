@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 MARKETS_TTL = 60
 POINTS = 40
-SYMBOLS = [("^KS11", "코스피"), ("^KQ11", "코스닥"), ("^IXIC", "나스닥"), ("NVDA", "엔비디아")]
+SYMBOLS = [("^KS11", "코스피"), ("^GSPC", "S&P 500"), ("^IXIC", "나스닥"), ("NVDA", "엔비디아")]
 # 우측 레일: 환율(원)과 금속 선물(USD). 엔은 단가가 작아 100엔 기준으로 환산한다.
 RAIL_SYMBOLS = [("KRW=X", "달러 (원)"), ("JPYKRW=X", "100엔 (원)"),
                 ("GC=F", "금 (oz)"), ("SI=F", "은 (oz)"), ("HG=F", "구리 (lb)")]

@@ -1,4 +1,4 @@
-/* 시장 지수 띠: 상단에 코스피·코스닥·나스닥·엔비디아. 맨 마지막에 로드합니다 */
+/* 시장 지수 띠: 상단에 코스피·S&P 500·나스닥·엔비디아. 맨 마지막에 로드합니다 */
 :root { --band-h: 62px; --mk-up: #E5484D; --mk-down: #3B82F6; --mk-flat: #8A93A6; }
 .market-band { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: var(--band-h); padding-inline: max(0px, calc((100% - var(--content-w)) / 2));
   background: var(--surface); border-bottom: 1px solid var(--line); }
