@@ -47,6 +47,9 @@ const face = (p) => (p.photoURL ? `<img class="face" src="${esc(p.photoURL)}" al
 const formBoxes = (letters) => `<span class="fm-form">${letters.map((r) => `<i class="r-${r}">${{ W: '승', D: '무', L: '패' }[r]}</i>`).join('')}</span>`;
 const card = (inner, cls = '') => `<section class="p-card ${cls}">${inner}</section>`;
 const title = (t) => `<h3 class="p-sec">${esc(t)}</h3>`;
+// 히어로 기록 칩(숫자는 화면을 그린 뒤 countUp 이 0 에서 올린다). 골·도움·선방이 1 이상이면 금색 글로우.
+const chip = (label, value, hot = false, ico = '') => `<div class="hchip${hot && value > 0 ? ' hot' : ''}"><b>${ico ? `<i>${ico}</i>` : ''}<span data-count="${value}">${value}</span></b><small>${label}</small></div>`;
+const rise = (i) => `style="--i:${i}"`;
 const panel = (head, inner, cls = '') => `<section class="fmp ${cls}">${head ? `<h3 class="fmp-h">${head}</h3>` : ''}<div class="fmp-b">${inner}</div></section>`;
 const err = (msg) => panel('', `<p class="p-dim">${esc(msg)}</p>`);
 
@@ -226,8 +229,11 @@ function playerView(id) {
   const p = findPlayer(id);
   if (!p) return err('선수를 찾지 못했어요.');
   const sub = subOf('player', 'ov'), s = p.stats, apps = s ? s.appearances : 0;
-  const hero = panel('', `<div class="ph"><span class="av">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
-      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>`, 'fm-hero');
+  const hero = panel('', `<div class="ph"><span class="av ring">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
+      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>
+    ${s ? `<div class="hchips">${p.position === 'goalkeeper' ? chip('출전', s.appearances) + chip('선방', s.saves, true, '✋') + chip('실점', s.conceded)
+      : chip('출전', s.appearances) + chip('골', s.goals, true, '⚽') + chip('도움', s.assists, true, '↗')}</div>` : ''}
+    ${p.number != null ? `<span class="wm" aria-hidden="true">${p.number}</span>` : ''}`, 'fm-hero fm-card');
   const tabs = subTabs('player', [['ov', '개요'], ['stats', '기록'], ['info', '정보']], sub);
   let body;
   if (sub === 'stats') {
@@ -235,7 +241,8 @@ function playerView(id) {
       ? [['출전', s.appearances], ['교체 투입', s.subIns], ['선방', s.saves], ['실점', s.conceded], ['피유효슈팅', s.shotsFaced], ['경고', s.yellow], ['퇴장', s.red], ['파울', s.foulsCommitted]]
       : [['출전', s.appearances], ['교체 투입', s.subIns], ['골', s.goals], ['도움', s.assists], ['슈팅', s.shots], ['유효슈팅', s.shotsOnTarget], ['파울 획득', s.foulsSuffered], ['파울', s.foulsCommitted],
         ['오프사이드', s.offsides], ['경고', s.yellow], ['퇴장', s.red], ['자책골', s.ownGoals]];
-    body = panel('시즌 기록', rows.length ? `<table class="fm-t fm-kv">${rows.map(([l, v]) => `<tr><td class="tl">${l}</td><td class="fm-hl">${v}</td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr>`).join('')}</table>` : '<p class="p-dim">ESPN 에 이 선수의 시즌 기록이 없어요(출전 전이거나 등록 직후).</p>') + `<p class="p-note">출처: ESPN 시즌 누적 기록(비공식 API). 경기 이벤트와의 대조 검증은 에버턴 선수만 수행합니다.</p>`;
+    const bmax = Math.max(0, ...rows.filter(([l]) => l !== '출전' && l !== '교체 투입').map(([, v]) => v));
+    body = panel('시즌 기록', rows.length ? `<table class="fm-t fm-kv">${rows.map(([l, v], i) => { const star = ['골', '도움', '선방'].includes(l) && v > 0; return `<tr class="rise rrow${star ? ' star' : ''}" ${rise(i)}><td class="tl">${star ? `<i class="ri">${{ 골: '⚽', 도움: '↗', 선방: '✋' }[l]}</i>` : ''}${l}</td><td class="fm-hl"><span data-count="${v}">${v}</span></td><td class="dim">${apps ? per(v, apps) + '/경기' : ''}</td></tr><tr class="rise rb${star ? ' star' : ''}" ${rise(i)}><td colspan="3"><u class="rbar"><s style="width:${bmax ? Math.round(v / bmax * 100) : 0}%"></s></u></td></tr>`; }).join('')}</table>` : '<p class="p-dim">ESPN 에 이 선수의 시즌 기록이 없어요(출전 전이거나 등록 직후).</p>') + `<p class="p-note">출처: ESPN 시즌 누적 기록(비공식 API). 경기 이벤트와의 대조 검증은 에버턴 선수만 수행합니다.</p>`;
   } else if (sub === 'info') {
     const kv = (k, v, note = '') => `<tr><td class="tl">${k}</td><td>${esc(v ?? '-')}${note}</td></tr>`;
     const dis = p.bioDisputed || {};
@@ -255,7 +262,7 @@ function playerView(id) {
       ${kv('출생지', p.birthPlace)}${kv('등번호', p.number)}</table>
       <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>${photoLine}${disNote}`);
   } else {
-    const tags = p.strengths.length ? `<div class="p-tags"><small>강점</small>${p.strengths.map((t) => `<b>${esc(t)}</b>`).join('')}</div>` : '';
+    const tags = p.strengths.length ? `<div class="p-tags foil"><small>강점</small>${p.strengths.map((t) => `<b>${esc(t)}</b>`).join('')}</div>` : '';
     const bars = p.radar.map((m) => `<div class="ab"><span>${esc(m.label)}</span><div><i class="${attrClass(m.value)}" style="width:${Math.max(m.value * 100, 3)}%"></i></div><em class="${attrClass(m.value)}">${Math.round(m.value * 100)}</em></div>`).join('');
     body = (tags ? panel('', tags) : '') + panel('시즌 스탯 지표 (출전당)', p.radar.length ? `${radarSvg(p.radar)}<div class="abs">${bars}</div>
       <p class="p-note">골·도움 등 실제 기록을 출전 1회당으로 환산한 값입니다. 평점이 아닙니다.</p>` : '<p class="p-dim">출전 기록이 없어 지표를 만들 수 없어요.</p>');
@@ -283,7 +290,7 @@ function clubView(id) {
   if (!c) return err('구단 정보가 없어요.');
   const roster = model.rosters[id];
   const hero = panel('', `<div class="nx"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
-    ${row ? `<p class="p-when">${row.rank}위 · 승점 ${row.points} · ${row.won}승 ${row.drawn}무 ${row.lost}패</p>` : ''}`, 'fm-hero');
+    ${row ? `<div class="hchips sm">${chip('순위', row.rank, row.rank === 1)}${chip('승점', row.points)}${chip('승', row.won)}${chip('무', row.drawn)}${chip('패', row.lost)}</div>` : ''}`, 'fm-hero fm-card');
   const body = roster && roster.__error ? err(roster.__error) : roster ? teamSquadHtml(id, roster) : err('스쿼드 불러오는 중…');
   return hero + body;
 }
@@ -316,6 +323,20 @@ function renderPhone() {
     <nav class="p-tabs">${TABS.map(([k, t]) => `<button data-tab="${k}" class="${nav.tab === k ? 'on' : ''}">${tabIcon(k)}<span>${t}</span></button>`).join('')}</nav>`;
   if (keep && nav.keepScroll) { $('#pBody').scrollTop = keep; }
   nav.keepScroll = false;
+  const fxKey = `${cur.view}:${cur.id ?? ''}`, fresh = fxKey !== lastFx;   // 같은 화면을 다시 그릴 때(탭 전환·사진 갱신)는 효과를 다시 틀지 않는다
+  lastFx = fxKey; scr.classList.toggle('nofx', !fresh);
+  countUp(scr, fresh);
+}
+let lastFx = '';
+// [data-count] 숫자를 0 에서 목표 값까지 올린다. 모션 줄이기면 바로 최종 값.
+function countUp(root, animate) {
+  const still = !animate || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  root.querySelectorAll('[data-count]').forEach((el) => {
+    const to = +el.dataset.count; if (still || !Number.isFinite(to) || to <= 0) { el.textContent = to; return; }
+    const t0 = performance.now(); el.textContent = 0;
+    const tick = (now) => { const k = Math.min(1, (now - t0) / 900); el.textContent = Math.round(to * (1 - (1 - k) ** 3)); if (k < 1 && el.isConnected) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
 }
 
 // 사진은 백그라운드에서 받아 오므로, 대기 중인 선수가 있으면 몇 번 다시 불러와 화면에 반영한다.

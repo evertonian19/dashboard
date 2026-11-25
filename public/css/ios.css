@@ -195,3 +195,46 @@ button.pp.xp { cursor: pointer; } button.pp.xp:hover i { box-shadow: 0 0 0 2px #
 .tac-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
 .tac-kpi div { display: grid; gap: 2px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12); text-align: center; } .tac-kpi small { opacity: .7; } .tac-kpi b { font-size: 15px; }
 .tac-sum { margin: 8px 0 4px; font-weight: 600; } .tac-pts { margin: 4px 0 6px; padding-left: 18px; line-height: 1.5; }
+
+/* ---- 프로필 효과: 스타디움 조명 + 선수카드 (앱의 EvDesign/Effects.swift 와 같은 구성) ---- */
+.fmp.fm-hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #0A2E8A 0%, var(--brand) 35%, var(--brand-deep) 75%, #000F36 100%); box-shadow: var(--card-shadow), inset 0 1px 0 rgba(227, 165, 26, .55); }
+.fm-hero .fmp-b { position: relative; z-index: 1; }
+.fm-hero::before, .fm-hero::after { content: ''; position: absolute; top: 0; width: 22%; height: 180%; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, 0)); filter: blur(9px); transform-origin: 50% 0; }
+.fm-hero::before { left: 7%; animation: beamL 7s ease-in-out infinite; }
+.fm-hero::after { right: 7%; animation: beamR 8.5s ease-in-out infinite; }
+@keyframes beamL { 0%, 100% { transform: rotate(-22deg); } 50% { transform: rotate(-9deg); } }
+@keyframes beamR { 0%, 100% { transform: rotate(22deg); } 50% { transform: rotate(9deg); } }
+.fm-card .wm { position: absolute; right: 8px; top: -6px; z-index: 0; font-size: 104px; font-weight: 900; line-height: 1; color: rgba(255, 255, 255, .07); pointer-events: none; font-style: italic; }
+.av.ring { box-shadow: 0 0 0 2.5px #E3A51A, 0 0 14px rgba(227, 165, 26, .55); animation: glow 2.8s ease-in-out infinite; }
+.fm-card .crest { box-shadow: 0 0 16px rgba(255, 255, 255, .35); animation: glowW 2.8s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 2.5px #E3A51A, 0 0 8px rgba(227, 165, 26, .4); } 50% { box-shadow: 0 0 0 2.5px #F5C451, 0 0 20px rgba(227, 165, 26, .85); } }
+@keyframes glowW { 0%, 100% { box-shadow: 0 0 8px rgba(255, 255, 255, .25); } 50% { box-shadow: 0 0 20px rgba(255, 255, 255, .6); } }
+.hchips { display: flex; gap: 6px; margin-top: 12px; }
+.hchip { flex: 1; min-width: 0; padding: 7px 4px 6px; border-radius: 10px; background: rgba(255, 255, 255, .10); border: 1px solid rgba(255, 255, 255, .18); display: grid; gap: 1px; }
+.hchip b { font-size: 24px; font-weight: 800; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; } .hchip b i { font-style: normal; font-size: 12px; margin-right: 4px; vertical-align: middle; }
+.hchip small { font-size: 10.5px; font-weight: 600; }
+.hchips.sm .hchip b { font-size: 17px; }
+.hchip.hot { border-color: rgba(227, 165, 26, .85); animation: glowG 2.8s ease-in-out infinite; } .hchip.hot b { color: var(--gold); }
+@keyframes glowG { 0%, 100% { box-shadow: 0 0 6px rgba(227, 165, 26, .35); } 50% { box-shadow: 0 0 16px rgba(227, 165, 26, .8); } }
+.rise { animation: rise .5s cubic-bezier(.2, .8, .3, 1.1) both; animation-delay: calc(var(--i, 0) * 40ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.fm-kv .rrow.star .tl { color: var(--tx); font-weight: 700; } .fm-kv .rrow.star .fm-hl { color: var(--gold); }
+.ri { font-style: normal; margin-right: 5px; color: var(--gold); }
+.rbar { display: block; height: 3px; margin: 0; border-radius: 99px; background: var(--sf2); text-decoration: none; overflow: hidden; }
+.rbar s { display: block; height: 100%; text-decoration: none; border-radius: 99px; background: linear-gradient(90deg, rgba(0, 51, 153, .5), var(--brand)); transform-origin: left; animation: grow .7s .15s ease-out both; }
+.fm-kv .rrow td { border-bottom: 0; padding-bottom: 2px; } .fm-kv .rb td { padding: 0 0 7px; }
+.rb.star .rbar s, .rrow.star .rbar s { background: linear-gradient(90deg, rgba(227, 165, 26, .5), var(--gold)); }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.p-tags.foil b { position: relative; overflow: hidden; }
+.p-tags.foil b::after { content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 50%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent); animation: foil 3.6s ease-in-out infinite; }
+@keyframes foil { 0% { left: -60%; } 40%, 100% { left: 120%; } }
+.radar .rs, .radar .rg { transform-origin: 50% 50%; transform-box: fill-box; }
+.radar .rs { animation: bloom .9s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes bloom { from { opacity: 0; transform: scale(.05); } to { opacity: 1; transform: none; } }
+.ab i { background-image: linear-gradient(90deg, rgba(255, 255, 255, .0), rgba(255, 255, 255, .28)); animation: grow .7s ease-out both; transform-origin: left; }
+/* 같은 화면을 다시 그릴 때는 등장 효과를 반복하지 않는다 */
+.nofx .rise, .nofx .rbar s, .nofx .radar .rs, .nofx .ab i { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .fm-hero::before, .fm-hero::after, .av.ring, .fm-card .crest, .hchip.hot, .p-tags.foil b::after, .rise, .rbar s, .radar .rs, .ab i { animation: none; }
+  .fm-hero::before { transform: rotate(-16deg); } .fm-hero::after { transform: rotate(16deg); }
+}
