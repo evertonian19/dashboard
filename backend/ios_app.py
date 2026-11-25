@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-from backend import espn, photocache, plphotos, wikidata
+from backend import eafc, espn, photocache, plphotos, wikidata
 
 TEAM_ID = espn.TEAM_ID
 SEASON = 2026
@@ -97,6 +97,64 @@ def strengths(player, limit=2, team_games=None):
         return []
     metrics = [m for m in radar(player, team_games) if m["value"] >= STRENGTH_THRESHOLD and m["label"] != "규율"]
     return [m["label"] for m in sorted(metrics, key=lambda m: -m["value"])[:limit]]
+
+
+# 올 시즌 실적 백분위: 리그 전체(20개 구단) 같은 포지션 선수 중 출전당 값의 순위. 출전 3회 미만은 풀에서 뺀다.
+SEASON_ROWS = {
+    "field": [("골", "goals"), ("도움", "assists"), ("슈팅", "shots"), ("유효슈팅", "shotsOnTarget"), ("파울 획득", "foulsSuffered")],
+    "goalkeeper": [("선방", "saves")],
+}
+_league_pool = {"at": 0.0, "data": None}
+
+
+def _per_app(p, key):
+    s = p["stats"]
+    return s[key] / s["appearances"]
+
+
+def league_pool():
+    """{포지션: {키: 정렬된 출전당 값}} (포지션 = goalkeeper/defender/midfielder/attacker). 구단 로스터는 espn 캐시를 쓴다. 실패한 구단은 건너뛴다."""
+    if _league_pool["data"] is not None and time.time() - _league_pool["at"] < 3600:
+        return _league_pool["data"]
+    pool = {pos: {k: [] for _, k in SEASON_ROWS["goalkeeper" if pos == "goalkeeper" else "field"]}
+            for pos in ("goalkeeper", "defender", "midfielder", "attacker")}
+    try:
+        ids = [c["club"]["id"] for c in espn.clubs()]
+    except Exception:
+        ids = []
+    for cid in ids:
+        try:
+            players = espn.roster(cid)["players"]
+        except Exception:
+            continue
+        for p in players:
+            if not p.get("stats") or p["stats"]["appearances"] < STRENGTH_MIN_APPEARANCES:
+                continue
+            if p["position"] not in pool:
+                continue
+            for _, key in SEASON_ROWS["goalkeeper" if p["position"] == "goalkeeper" else "field"]:
+                pool[p["position"]][key].append(_per_app(p, key))
+    for kind in pool.values():
+        for v in kind.values():
+            v.sort()
+    _league_pool.update(at=time.time(), data=pool)
+    return pool
+
+
+def season_rows(player, pool):
+    """[{label, key, total, perApp, pct}] — pct 는 리그 같은 포지션 선수 중 이 선수보다 낮거나 같은 비율(0~100). 풀이 15명 미만이면 pct=None."""
+    s = player.get("stats")
+    if not s or s["appearances"] <= 0:
+        return []
+    out = []
+    for label, key in SEASON_ROWS["goalkeeper" if player["position"] == "goalkeeper" else "field"]:
+        vals = pool.get(player["position"], {}).get(key, [])
+        mine = _per_app(player, key)
+        pct = None
+        if s["appearances"] >= STRENGTH_MIN_APPEARANCES and len(vals) >= 15:
+            pct = round(100 * sum(1 for v in vals if v <= mine) / len(vals))
+        out.append({"label": label, "key": key, "total": s[key], "perApp": round(mine, 2), "pct": pct})
+    return out
 
 
 def top_contributors(players, limit=6):
@@ -184,7 +242,13 @@ def squad(club_id=TEAM_ID):
         cands[pid] = extra + cands.get(pid, [])
     data = dict(data, players=photocache.apply(players, cands))
     games = _team_games() if club_id == TEAM_ID else None
-    players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games),
+    try:
+        eaid = {k: v["eaId"] for k, v in overrides.items() if isinstance(v, dict) and v.get("eaId")}
+        data = dict(data, players=eafc.attach(data["players"], eaid))
+    except Exception:
+        data = dict(data, players=[dict(p, ratings=None) for p in data["players"]])
+    pool = league_pool()
+    players = [dict(p, radar=radar(p, games), strengths=strengths(p, team_games=games), season=season_rows(p, pool),
                     contribution=(p["stats"]["goals"] + p["stats"]["assists"]) if p["stats"] else 0) for p in data["players"]]
     top = [p["id"] for p in top_contributors(data["players"])]
     return {"clubID": club_id, "players": players, "topContributors": top, "coach": wikidata.head_coach(club_id, _club_name(club_id)), "season": data["season"]}

@@ -285,3 +285,29 @@ button.pp.xp:hover i { box-shadow: 0 0 0 2px #fff, 0 0 20px var(--t3); transform
   .pitch .l1, .pitch .l2, .pitch .cc, .pitch .sw, .pp.drop, .pp.star i, .pp .crown { animation: none; }
   .fxl .sp { display: none; } .fm-hero::before { transform: rotate(-16deg); } .fm-hero::after { transform: rotate(16deg); }
 }
+
+/* ---- 선수 능력치(FM 식) ---- */
+.ovrb { margin-left: auto; align-self: flex-start; display: grid; justify-items: center; padding: 6px 9px 5px; border-radius: 10px; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .3); position: relative; z-index: 2; }
+.ovrb b { font-size: 26px; line-height: 1; font-weight: 900; color: #fff; } .ovrb small { font-size: 9.5px; letter-spacing: .08em; opacity: .85; }
+.pm-wrap { display: flex; gap: 14px; align-items: stretch; }
+.pm { flex: none; width: 96px; height: 134px; } .pm rect, .pm path, .pm circle:not(.pm-d circle) { fill: none; stroke: color-mix(in srgb, var(--tx) 22%, transparent); stroke-width: 1; }
+.pm rect { fill: color-mix(in srgb, #2E8B57 22%, transparent); }
+.pm-d circle { fill: color-mix(in srgb, var(--brand) 45%, transparent); stroke: var(--brand); stroke-width: 1.2; } .pm-d.main circle { fill: var(--brand); stroke: #fff; stroke-width: 1.5; }
+.pm-d text { font-size: 7px; font-weight: 800; text-anchor: middle; fill: var(--tx); }
+.pm-info { flex: 1; min-width: 0; display: grid; gap: 6px; align-content: start; }
+.ovr { display: flex; align-items: baseline; gap: 6px; } .ovr b { font-size: 34px; font-weight: 900; line-height: 1; background: none; } .ovr small { color: var(--tx2); font-size: 11px; font-weight: 600; }
+.pm-info dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 12px; } .pm-info dt { color: var(--tx2); } .pm-info dd { margin: 0; font-weight: 700; }
+.stars { color: var(--gold); letter-spacing: 1px; } .stars i { font-style: normal; color: var(--ln); }
+.attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ag h4 { margin: 0 0 5px; font-size: 11px; letter-spacing: .06em; color: var(--tx2); border-bottom: 1px solid var(--ln); padding-bottom: 3px; }
+.at { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 11.5px; padding: 2.5px 3px; border-radius: 5px; }
+.at span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.at b { flex: none; min-width: 23px; text-align: center; font-weight: 800; border-radius: 4px; padding: 0 3px; background: none; font-variant-numeric: tabular-nums; }
+.at b.a1 { color: #D5484B; } .at b.a3 { color: #C99A0A; } .at b.a4 { color: #2E9A52; } .at b.a5 { color: #fff; background: linear-gradient(135deg, #17A99A, #2FD3C0); }
+.ovr b.a1, .ovrb b { text-shadow: none; }
+.at.top { box-shadow: inset 0 0 0 1.5px var(--brand); background: color-mix(in srgb, var(--brand) 9%, transparent); font-weight: 700; }
+.raw-t { margin-top: 8px; font-size: 11.5px; font-weight: 700; color: var(--brand); padding: 4px 9px; border: 1px solid var(--ln); border-radius: 99px; }
+.pstyle { display: grid; gap: 7px; } .pstyle div { display: grid; gap: 1px; padding: 7px 9px; border-radius: 8px; background: var(--sf2); border-left: 3px solid var(--brand); } .pstyle b { font-size: 12.5px; } .pstyle small { font-size: 11px; color: var(--tx2); line-height: 1.4; }
+.ab { grid-template-columns: 68px 1fr 64px; } .ab small { grid-column: 2 / 4; color: var(--tx2); font-size: 10.5px; margin-top: -3px; } .ab em { font-size: 11px; }
+/* 맥락 없는 장식은 선수·구단 히어로에서 뺐다: 정보(종합 평가·기록)만 남긴다 */
+.fm-hero .hchip.hot { animation: none; }

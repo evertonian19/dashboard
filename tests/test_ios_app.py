@@ -4,7 +4,7 @@ import json
 import os
 import unittest
 
-from backend import espn, photocache, plphotos, wikidata
+from backend import eafc, espn, photocache, plphotos, wikidata
 from backend import ios_app as app
 from backend.ios_status import ios_status
 
@@ -443,6 +443,57 @@ class StatusTests(unittest.TestCase):
             self.skipTest("iOS repo not present")
         self.assertGreater(s["source_lines"], 0)
         self.assertEqual(len(s["modules"]), 4)
+
+
+def _ea(first, last, born, team="Everton", pos="CM", alt=(), stats=None, common=None, id_=1):
+    return {"id": id_, "first": first, "last": last, "common": common, "born": born, "overall": 77, "team": team, "position": pos,
+            "alt": list(alt), "foot": "right", "weakFoot": 3, "skillMoves": 3, "stats": stats or {"finishing": 78, "gkDiving": 7}, "abilities": []}
+
+
+class EaRatingsTests(unittest.TestCase):
+    def test_to20_bounds(self):
+        self.assertEqual([eafc.to20(v) for v in (1, 2, 3, 50, 77, 99)], [1, 1, 1, 10, 15, 20])
+
+    def test_match_requires_birthdate_and_name(self):
+        p = {"id": 1, "name": "Christian N\u00f8rgaard", "birthDate": "1994-03-10"}
+        self.assertTrue(eafc.is_match(p, _ea("Christian", "N\u00f8rgaard", "1994-03-10")))
+        self.assertTrue(eafc.is_match(p, _ea("Christian", "Norgaard", "1994-03-10")))          # 악센트 무시
+        self.assertFalse(eafc.is_match(p, _ea("Christian", "N\u00f8rgaard", "1995-01-01")))    # 생일이 다르면 동명이인
+        self.assertFalse(eafc.is_match(p, _ea("Lewis", "Potter", "1994-03-10")))
+
+    def test_match_charly_alcaraz_by_birthdate(self):
+        p = {"id": 2, "name": "Charly Alcaraz", "birthDate": "2002-11-30"}
+        self.assertTrue(eafc.is_match(p, _ea("Carlos", "Alcaraz", "2002-11-30")))
+
+    def test_twins_resolved_by_first_name(self):
+        p = {"id": 3, "name": "Michael Keane", "birthDate": "1993-01-11"}
+        items = [_ea("Will", "Keane", "1993-01-11", team="Preston", id_=10), _ea("Michael", "Keane", "1993-01-11", id_=11)]
+        orig = eafc.search
+        eafc.search = lambda term: (items, 0)
+        try:
+            cand, _ = eafc.find(p)
+        finally:
+            eafc.search = orig
+        self.assertEqual(cand["id"], 11)
+
+    def test_build_groups_and_top(self):
+        st = {k: 50 for g in eafc.GROUPS.values() for k, _ in g[1]}
+        st.update(finishing=90, dribbling=88, acceleration=86)
+        r = eafc.build(_ea("A", "B", "2000-01-01", pos="ST", alt=["CF"], stats=st), 0, "attacker")
+        self.assertEqual(r["top"], ["finishing", "dribbling", "acceleration"])
+        self.assertEqual([q["main"] for q in r["positions"]], [True, False])
+        self.assertEqual([g["id"] for g in r["groups"]], ["technical", "mental", "physical"])
+        fin = next(a for g in r["groups"] for a in g["attrs"] if a["key"] == "finishing")
+        self.assertEqual((fin["raw"], fin["fm"]), (90, 18))
+
+    def test_season_percentile(self):
+        pool = {"attacker": {k: sorted(i / 10 for i in range(20)) for _, k in app.SEASON_ROWS["field"]}}
+        pl = {"position": "attacker", "stats": {"appearances": 10, "goals": 30, "assists": 0, "shots": 0, "shotsOnTarget": 0, "foulsSuffered": 0}}
+        rows = {r["key"]: r for r in app.season_rows(pl, pool)}
+        self.assertEqual(rows["goals"]["pct"], 100)      # 출전당 3.0 → 풀의 모두보다 높음
+        self.assertEqual(rows["assists"]["pct"], 5)      # 0 → 풀의 0 하나와 같거나 높음(1/20)
+        pl["stats"]["appearances"] = 2
+        self.assertIsNone(app.season_rows(pl, pool)[0]["pct"])   # 출전 3회 미만은 순위를 내지 않는다
 
 
 if __name__ == "__main__":

@@ -69,7 +69,7 @@ const err = (msg) => panel('', `<p class="p-dim">${esc(msg)}</p>`);
 
 /* ---------------- 상태 (앱의 AppModel) ---------------- */
 const model = { overview: null, matches: null, squad: null, clubs: null, standings: null, news: null, diag: null, details: {}, rosters: {}, tactics: {} };
-const nav = { tab: 'home', stack: [], fixtureFilter: 'all', sort: 'pos', tabs: {} };
+const nav = { tab: 'home', stack: [], fixtureFilter: 'all', sort: 'pos', tabs: {}, raw: false };
 
 async function loadAll() {
   const get = (path) => api(path).catch((e) => ({ __error: e.message || String(e) }));
@@ -243,14 +243,49 @@ function radarSvg(metrics) {
   return `<svg viewBox="-26 -4 252 208" class="radar">${[0.33, 0.66, 1].map((k) => `<polygon points="${ring(k)}" class="rg"/>`).join('')}<polygon points="${shape}" class="rs"/>${labels}</svg>`;
 }
 
+// ---- FM 식 능력치 (EA SPORTS FC 공식 평가 → 1~20) ----
+const stars = (n, max = 5) => `<span class="stars" aria-label="${n}/${max}">${'★'.repeat(n || 0)}<i>${'★'.repeat(max - (n || 0))}</i></span>`;
+const fmCls = (v) => (v >= 16 ? 'a5' : v >= 11 ? 'a4' : v >= 6 ? 'a3' : 'a1');   // FM 식: 1~5 빨강 · 6~10 노랑 · 11~15 연두 · 16~20 청록
+function posMap(positions) {
+  const dots = positions.map((q) => `<g class="pm-d${q.main ? ' main' : ''}" transform="translate(${(q.x * 100).toFixed(1)} ${(q.y * 140).toFixed(1)})"><circle r="${q.main ? 6 : 4.5}"/>${q.main ? `<text y="-9">${esc(q.code)}</text>` : ''}</g>`).join('');
+  return `<svg class="pm" viewBox="0 0 100 140" role="img" aria-label="포지션 ${positions.map((q) => esc(q.label)).join(', ')}"><rect x="1" y="1" width="98" height="138" rx="3"/><path d="M1 70H99M30 1V16H70V1M30 139V124H70V139M38 1V6H62V1M38 139V134H62V139"/><circle cx="50" cy="70" r="11"/>${dots}</svg>`;
+}
+function overviewHtml(p) {
+  const rt = p.ratings, s = p.stats;
+  let html = '';
+  if (rt) {
+    const mainPos = rt.positions.find((q) => q.main);
+    const others = rt.positions.filter((q) => !q.main);
+    html += panel('평가 · 포지션', `<div class="pm-wrap">${posMap(rt.positions)}<div class="pm-info">
+      <div class="ovr"><b class="${fmCls(Math.round(rt.overall / 5))}">${rt.overall}</b><small>EA 종합</small></div>
+      <dl><dt>주 포지션</dt><dd>${mainPos ? esc(mainPos.label) : '-'}</dd>${others.length ? `<dt>다른 포지션</dt><dd>${others.map((q) => esc(q.label)).join(', ')}</dd>` : ''}
+      ${rt.foot ? `<dt>주발</dt><dd>${rt.foot === 'right' ? '오른발' : '왼발'}</dd>` : ''}<dt>약발</dt><dd>${stars(rt.weakFoot)}</dd><dt>개인기</dt><dd>${stars(rt.skillMoves)}</dd></dl></div></div>`);
+    const top = new Set(rt.top);
+    html += panel('능력치', `<div class="attrs">${rt.groups.map((g) => `<div class="ag"><h4>${esc(g.title)}</h4>${g.attrs.map((a) => `<div class="at${top.has(a.key) ? ' top' : ''}"><span>${esc(a.label)}</span>
+      <b class="${fmCls(a.fm)}" title="EA 원본 ${a.raw}">${nav.raw ? a.raw : a.fm}</b></div>`).join('')}</div>`).join('')}</div>
+      <button class="raw-t" data-raw>${nav.raw ? '1~20 환산값 보기' : 'EA 원본(1~99) 보기'}</button>
+      <p class="p-note">EA SPORTS FC 공식 평가(${esc(rt.fetchedAt)} 받음)의 원본 1~99 값을 5로 나눠 1~20으로 환산했습니다. 테두리는 이 선수의 상위 3개 능력치. EA 등록 소속: ${esc(rt.eaTeam || '-')}.
+      EA 평가는 게임 출시 시점·업데이트 기준이라 이번 시즌 이적·성장은 반영되지 않을 수 있습니다.</p>`);
+    if (rt.abilities.length) html += panel('플레이 스타일', `<div class="pstyle">${rt.abilities.map((a) => `<div><b>${esc(a.label)}</b><small>${esc(a.description)}</small></div>`).join('')}</div>`);
+  } else {
+    html += panel('능력치', '<p class="p-dim">EA SPORTS FC 평가 데이터에서 이 선수를 확실히 찾지 못해 능력치를 표시하지 않습니다(이름·생년월일이 모두 일치할 때만 연결).</p>');
+  }
+  const rows = (p.season || []);
+  html += panel('올 시즌 실적 · 리그 순위', rows.length ? `<div class="abs">${rows.map((m) => `<div class="ab"><span>${esc(m.label)}</span><div>${m.pct != null ? `<i class="${attrClass(m.pct / 100)}" style="width:${Math.max(m.pct, 3)}%"></i>` : ''}</div>
+      <em>${m.pct != null ? `상위 ${Math.max(1, 100 - m.pct)}%` : '-'}</em><small>${m.total}회 · 출전당 ${m.perApp}</small></div>`).join('')}</div>
+      <p class="p-note">ESPN 올 시즌 기록을 출전 1회당으로 환산해 리그 같은 포지션 선수(출전 3회 이상)와 비교한 순위입니다. 평점이 아닙니다.</p>`
+    : '<p class="p-dim">출전 기록이 없어 시즌 실적을 만들 수 없어요.</p>');
+  return html;
+}
+
 function playerView(id) {
   const p = findPlayer(id);
   if (!p) return err('선수를 찾지 못했어요.');
   const sub = subOf('player', 'ov'), s = p.stats, apps = s ? s.appearances : 0;
-  const hero = panel('', `${fxLayer()}<div class="ph"><span class="av ring">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
-      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>
+  const hero = panel('', `<div class="ph"><span class="av ring">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
+      <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div>${p.ratings ? `<div class="ovrb" title="EA SPORTS FC 종합"><b>${p.ratings.overall}</b><small>EA</small></div>` : ''}</div>
     ${s ? `<div class="hchips">${p.position === 'goalkeeper' ? chip('출전', s.appearances) + chip('선방', s.saves, true, '✋') + chip('실점', s.conceded)
-      : chip('출전', s.appearances) + chip('골', s.goals, true, '⚽') + chip('도움', s.assists, true, '↗')}</div>${p.position === 'goalkeeper' ? '' : goalPips(s.goals)}` : ''}
+      : chip('출전', s.appearances) + chip('골', s.goals, true, '⚽') + chip('도움', s.assists, true, '↗')}</div>` : ''}
     ${p.number != null ? `<span class="wm" aria-hidden="true">${p.number}</span>` : ''}`, 'fm-hero fm-card', palOfClub(clubIdOfPlayer(id)));
   const tabs = subTabs('player', [['ov', '개요'], ['stats', '기록'], ['info', '정보']], sub);
   let body;
@@ -278,12 +313,9 @@ function playerView(id) {
     body = panel('선수 정보', `<table class="fm-t fm-kv">${kv('국적', p.nationality, warn('nationality'))}${kv('포지션', POS[p.position][1])}${kv('나이', p.age != null ? p.age + '세' : null)}
       ${kv('생년월일', p.birthDate, warn('birthDate'))}${kv('키', p.heightCM ? p.heightCM + ' cm' : null, warn('heightCM', (x) => (x ? x + ' cm' : '-')))}${kv('몸무게', p.weightKG ? p.weightKG + ' kg' : null)}
       ${kv('출생지', p.birthPlace)}${kv('등번호', p.number)}</table>
-      <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 평점·패스 지표는 데이터 출처(ESPN)가 제공하지 않아 표시하지 않습니다.</p>${photoLine}${disNote}`);
+      <p class="p-note">신상 출처: ${srcText}${p.bioPending ? ' · 교차 확인 중(잠시 후 새로고침)' : ''}. 시즌 기록은 ESPN, 능력치는 EA SPORTS FC 공식 평가입니다(개요 탭). 경기 평점은 제공되지 않아 표시하지 않습니다.</p>${photoLine}${disNote}`);
   } else {
-    const tags = p.strengths.length ? `<div class="p-tags foil"><small>강점</small>${p.strengths.map((t) => `<b>${esc(t)}</b>`).join('')}</div>` : '';
-    const bars = p.radar.map((m) => `<div class="ab"><span>${esc(m.label)}</span><div><i class="${attrClass(m.value)}" style="width:${Math.max(m.value * 100, 3)}%"></i></div><em class="${attrClass(m.value)}">${Math.round(m.value * 100)}</em></div>`).join('');
-    body = (tags ? panel('', tags) : '') + panel('시즌 스탯 지표 (출전당)', p.radar.length ? `${radarSvg(p.radar)}<div class="abs">${bars}</div>
-      <p class="p-note">골·도움 등 실제 기록을 출전 1회당으로 환산한 값입니다. 평점이 아닙니다.</p>` : '<p class="p-dim">출전 기록이 없어 지표를 만들 수 없어요.</p>');
+    body = overviewHtml(p);
   }
   return hero + tabs + body;
 }
@@ -307,7 +339,7 @@ function clubView(id) {
   const row = (model.standings || []).find((r) => r.club.id === id);
   if (!c) return err('구단 정보가 없어요.');
   const roster = model.rosters[id];
-  const hero = panel('', `${fxLayer()}<div class="nx halo"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
+  const hero = panel('', `<div class="nx halo"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
     ${row ? `<div class="hchips sm">${chip('순위', row.rank, row.rank === 1)}${chip('승점', row.points)}${chip('승', row.won)}${chip('무', row.drawn)}${chip('패', row.lost)}</div>` : ''}`, 'fm-hero fm-card', palStyle(c.club.code));
   const body = roster && roster.__error ? err(roster.__error) : roster ? teamSquadHtml(id, roster) : err('스쿼드 불러오는 중…');
   return hero + body;
@@ -427,13 +459,14 @@ function mountIos() {
   start();
   api('/ios/status').then((s) => fill('#iosStatus', statusHtml(s))).catch((e) => fill('#iosStatus', errLine(e)));
   screen()?.addEventListener('click', (ev) => {
-    const el = ev.target.closest('[data-tab],[data-go],[data-back],[data-filter],[data-sub],[data-sort]');
+    const el = ev.target.closest('[data-tab],[data-go],[data-back],[data-filter],[data-sub],[data-sort],[data-raw]');
     if (!el) return;
     if (el.dataset.tab) { nav.tab = el.dataset.tab; nav.stack = []; renderPhone(); }
     else if (el.dataset.go) go(el.dataset.go, el.dataset.id ? Number(el.dataset.id) : undefined);
     else if (el.hasAttribute('data-back')) { nav.stack.pop(); renderPhone(); }
     else if (el.dataset.filter) { nav.fixtureFilter = el.dataset.filter; renderPhone(); }
     else if (el.dataset.sub) { const [k, v] = el.dataset.sub.split(':'); nav.tabs[k] = v; nav.keepScroll = false; renderPhone(); }
+    else if (el.hasAttribute('data-raw')) { nav.raw = !nav.raw; nav.keepScroll = true; renderPhone(); }
     else if (el.dataset.sort) { nav.sort = el.dataset.sort; nav.keepScroll = true; renderPhone(); }
   });
   $('#iosReload')?.addEventListener('click', () => { model.details = {}; model.tactics = {}; start(); });
