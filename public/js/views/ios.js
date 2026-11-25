@@ -50,7 +50,21 @@ const title = (t) => `<h3 class="p-sec">${esc(t)}</h3>`;
 // 히어로 기록 칩(숫자는 화면을 그린 뒤 countUp 이 0 에서 올린다). 골·도움·선방이 1 이상이면 금색 글로우.
 const chip = (label, value, hot = false, ico = '') => `<div class="hchip${hot && value > 0 ? ' hot' : ''}"><b>${ico ? `<i>${ico}</i>` : ''}<span data-count="${value}">${value}</span></b><small>${label}</small></div>`;
 const rise = (i) => `style="--i:${i}"`;
-const panel = (head, inner, cls = '') => `<section class="fmp ${cls}">${head ? `<h3 class="fmp-h">${head}</h3>` : ''}<div class="fmp-b">${inner}</div></section>`;
+// 팀 색: [주색, 어두운 색, 발광색]. ESPN 색은 흰색·검정이 섞여 있어 믿을 수 없으므로 구단 코드로 직접 정한 표를 쓴다(앱 TeamPalette.swift 와 같은 값).
+const TEAM_PAL = {
+  EVE: ['#0B3FB8', '#031A54', '#F2B84B'], ARS: ['#E10613', '#5E0008', '#F0C987'], AVL: ['#7A1038', '#2E0516', '#8FC3EE'], BOU: ['#D6281B', '#1A0504', '#FFB3AB'],
+  BRE: ['#E30613', '#4A0208', '#FFD23F'], BHA: ['#0A5BC4', '#04224D', '#FFD400'], CHE: ['#0A4BA0', '#041F4A', '#E8B93A'], COV: ['#3F9FC4', '#10335A', '#BFEAFF'],
+  CRY: ['#1B55B5', '#0A1F4D', '#E5384F'], FUL: ['#2B2B33', '#08080A', '#E4E6EB'], HUL: ['#E8890E', '#1B1006', '#FFE08A'], IPS: ['#1F5FCC', '#0A2250', '#EAF2FF'],
+  LEE: ['#2147A0', '#091632', '#FFD84D'], LIV: ['#C8102E', '#4A0612', '#2ED1BE'], MNC: ['#4A93CC', '#102B52', '#E3F2FF'], MAN: ['#D3201A', '#3A0806', '#FFD92E'],
+  NEW: ['#2F2F36', '#08080A', '#C9CED6'], NFO: ['#D01020', '#3E040A', '#FFE0E0'], SUN: ['#E01A2D', '#32060C', '#FFFFFF'], TOT: ['#1B2C6B', '#080F2B', '#D8DEEA'],
+};
+const palStyle = (code) => { const [a, b, g] = TEAM_PAL[String(code || '').toUpperCase()] || TEAM_PAL.EVE; return `--t1:${a};--t2:${b};--t3:${g}`; };
+const palOfClub = (id) => palStyle(((model.clubs || []).find((x) => x.club.id === id) || {}).club?.code);
+const clubIdOfPlayer = (pid) => Number(Object.keys(model.rosters).find((k) => (model.rosters[k].players || []).some((q) => q.id === pid)));
+// 히어로 뒤 장식: 흐르는 오로라 + 떠오르는 스파크 + 도는 포일 테두리
+const fxLayer = () => `<span class="fxl" aria-hidden="true"><i class="aur"></i>${Array.from({ length: 16 }, (_, i) => `<b class="sp" style="--x:${(i * 37 + 11) % 100}%;--d:${3 + (i * 13) % 5}s;--w:${-(i * 0.7).toFixed(1)}s;--z:${3 + (i % 4)}px"></b>`).join('')}<u class="foilb"></u></span>`;
+const goalPips = (g) => (g > 0 ? `<div class="pips" aria-label="골 ${g}">${Array.from({ length: Math.min(g, 10) }, (_, i) => `<i style="--i:${i}">⚽</i>`).join('')}${g > 10 ? `<em>+${g - 10}</em>` : ''}</div>` : '');
+const panel = (head, inner, cls = '', style = '') => `<section class="fmp ${cls}"${style ? ` style="${style}"` : ''}>${head ? `<h3 class="fmp-h">${head}</h3>` : ''}<div class="fmp-b">${inner}</div></section>`;
 const err = (msg) => panel('', `<p class="p-dim">${esc(msg)}</p>`);
 
 /* ---------------- 상태 (앱의 AppModel) ---------------- */
@@ -151,12 +165,13 @@ function matchView(id) {
   return head + tabs + body;
 }
 
+const pitchFx = '<span class="lt l1"></span><span class="lt l2"></span><span class="cc"></span><span class="sw"></span><span class="vg"></span>';
 function pitch(lineup) {
   const rows = {};
   lineup.starters.forEach((p) => { const [r, c] = (p.grid || '9:9').split(':').map(Number); (rows[r] ||= []).push({ ...p, c }); });
   const lines = Object.keys(rows).map(Number).sort((a, b) => b - a).map((r) =>
     `<div class="pl">${rows[r].sort((a, b) => a.c - b.c).map((p) => `<span class="pp"><i>${p.number ?? ''}</i><small>${esc(p.name.split(' ').pop())}</small></span>`).join('')}</div>`).join('');
-  return `<div class="pitch">${lines}</div>`;
+  return `<div class="pitch" style="${palStyle(lineup.club?.code)}">${pitchFx}${lines}</div>`;
 }
 
 const SORTS = { pos: (a, b) => 0, apps: (a, b) => (st(b, 'appearances') || 0) - (st(a, 'appearances') || 0), goals: (a, b) => (st(b, 'goals') || 0) - (st(a, 'goals') || 0),
@@ -170,17 +185,20 @@ function rosterTable(players, ctx = 'squad') {
 }
 
 /* 베스트 11 (최근 5경기 주력 XI) 포메이션: 선수 칸은 골·도움만, 누르면 선수 상세 */
-function xiPitch(xi, roster) {
+function xiPitch(xi, roster, pal = palStyle('EVE')) {
   const rows = {};
   xi.forEach((x) => { const [r, c] = (x.grid || '9:9').split(':').map(Number); (rows[r] ||= []).push({ ...x, c }); });
+  const topG = Math.max(0, ...xi.map((x) => { const q = (roster.players || []).find((y) => y.id === x.id); return q ? st(q, 'goals') || 0 : 0; }));
+  const order = Object.keys(rows).map(Number).sort((a, b) => a - b);   // 1 = 골키퍼부터 위로 떨어진다
   const lines = Object.keys(rows).map(Number).sort((a, b) => b - a).map((r) =>
-    `<div class="pl">${rows[r].sort((a, b) => a.c - b.c).map((x) => {
+    `<div class="pl">${rows[r].sort((a, b) => a.c - b.c).map((x, j) => {
       const p = (roster.players || []).find((q) => q.id === x.id);
-      const g = p ? st(p, 'goals') : null, a = p ? st(p, 'assists') : null;
-      const inner = `<i>${x.number ?? ''}</i><small>${esc(x.name.split(' ').pop())}</small><em class="ga${g || a ? '' : ' z'}">⚽${dash(g)} 🅰${dash(a)}</em>`;
-      return p ? `<button class="pp xp" data-go="player" data-id="${p.id}">${inner}</button>` : `<span class="pp xp">${inner}</span>`;
+      const g = p ? st(p, 'goals') : null, a = p ? st(p, 'assists') : null, star = topG > 0 && g === topG;
+      const inner = `${star ? '<u class="crown">👑</u>' : ''}<i>${x.number ?? ''}</i><small>${esc(x.name.split(' ').pop())}</small><em class="ga${g || a ? '' : ' z'}">⚽${dash(g)} 🅰${dash(a)}</em>`;
+      const cls = `pp xp drop${star ? ' star' : ''}`, sty = `style="--i:${order.indexOf(r) * 3 + j}"`;
+      return p ? `<button class="${cls}" ${sty} data-go="player" data-id="${p.id}">${inner}</button>` : `<span class="${cls}" ${sty}>${inner}</span>`;
     }).join('')}</div>`).join('');
-  return `<div class="pitch">${lines}</div>`;
+  return `<div class="pitch" style="${pal}">${pitchFx}${lines}</div>`;
 }
 
 function tacticsPanel(t) {
@@ -206,7 +224,7 @@ function teamSquadHtml(id, roster) {
   }
   const used = new Set(t.xi.map((x) => x.id));
   const bench = roster.players.filter((p) => !used.has(p.id));
-  return panel(`베스트 11 · ${esc(t.formation)}`, `${xiPitch(t.xi, roster)}<p class="p-note">최근 ${t.matchesUsed.length}경기 주력 선발(선수를 누르면 상세) · 골·도움은 시즌 누적</p>`)
+  return panel(`베스트 11 · ${esc(t.formation)}`, `${xiPitch(t.xi, roster, palOfClub(id))}<p class="p-note">최근 ${t.matchesUsed.length}경기 주력 선발(선수를 누르면 상세) · 골·도움은 시즌 누적</p>`)
     + panel(`후보 · ${bench.length}명${head}`, rosterTable(bench)) + tacticsPanel(t);
 }
 
@@ -229,11 +247,11 @@ function playerView(id) {
   const p = findPlayer(id);
   if (!p) return err('선수를 찾지 못했어요.');
   const sub = subOf('player', 'ov'), s = p.stats, apps = s ? s.appearances : 0;
-  const hero = panel('', `<div class="ph"><span class="av ring">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
+  const hero = panel('', `${fxLayer()}<div class="ph"><span class="av ring">${esc(p.name.slice(0, 1))}${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span><div><b>${p.number != null ? `#${p.number} ` : ''}${esc(p.name)}</b>
       <small>${posBadge(p.position)} ${POS[p.position][1]} · ${dash(p.age)}세</small><small>${flag(p)} ${esc(p.nationality || '-')}</small></div></div>
     ${s ? `<div class="hchips">${p.position === 'goalkeeper' ? chip('출전', s.appearances) + chip('선방', s.saves, true, '✋') + chip('실점', s.conceded)
-      : chip('출전', s.appearances) + chip('골', s.goals, true, '⚽') + chip('도움', s.assists, true, '↗')}</div>` : ''}
-    ${p.number != null ? `<span class="wm" aria-hidden="true">${p.number}</span>` : ''}`, 'fm-hero fm-card');
+      : chip('출전', s.appearances) + chip('골', s.goals, true, '⚽') + chip('도움', s.assists, true, '↗')}</div>${p.position === 'goalkeeper' ? '' : goalPips(s.goals)}` : ''}
+    ${p.number != null ? `<span class="wm" aria-hidden="true">${p.number}</span>` : ''}`, 'fm-hero fm-card', palOfClub(clubIdOfPlayer(id)));
   const tabs = subTabs('player', [['ov', '개요'], ['stats', '기록'], ['info', '정보']], sub);
   let body;
   if (sub === 'stats') {
@@ -289,8 +307,8 @@ function clubView(id) {
   const row = (model.standings || []).find((r) => r.club.id === id);
   if (!c) return err('구단 정보가 없어요.');
   const roster = model.rosters[id];
-  const hero = panel('', `<div class="nx"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
-    ${row ? `<div class="hchips sm">${chip('순위', row.rank, row.rank === 1)}${chip('승점', row.points)}${chip('승', row.won)}${chip('무', row.drawn)}${chip('패', row.lost)}</div>` : ''}`, 'fm-hero fm-card');
+  const hero = panel('', `${fxLayer()}<div class="nx halo"><div>${crest(c.club, 58)}<b>${esc(c.club.name)}</b></div></div>
+    ${row ? `<div class="hchips sm">${chip('순위', row.rank, row.rank === 1)}${chip('승점', row.points)}${chip('승', row.won)}${chip('무', row.drawn)}${chip('패', row.lost)}</div>` : ''}`, 'fm-hero fm-card', palStyle(c.club.code));
   const body = roster && roster.__error ? err(roster.__error) : roster ? teamSquadHtml(id, roster) : err('스쿼드 불러오는 중…');
   return hero + body;
 }
@@ -318,7 +336,8 @@ function renderPhone() {
   const scr = $('#phoneScreen');
   if (!scr) return;
   const keep = $('#pBody')?.scrollTop || 0;
-  scr.innerHTML = `<header class="fm-nav">${nav.stack.length ? '<button data-back aria-label="뒤로">‹</button>' : '<span class="fm-badge">EFC</span>'}<b>${esc(VIEW_TITLE[cur.view])}</b><span class="fm-src">ESPN</span></header>
+  const navPal = cur.view === 'club' ? palOfClub(cur.id) : cur.view === 'player' ? palOfClub(clubIdOfPlayer(cur.id)) : '';   // 구단·선수 화면은 상단 바도 팀 색
+  scr.innerHTML = `<header class="fm-nav"${navPal ? ` style="${navPal}"` : ''}>${nav.stack.length ? '<button data-back aria-label="뒤로">‹</button>' : '<span class="fm-badge">EFC</span>'}<b>${esc(VIEW_TITLE[cur.view])}</b><span class="fm-src">ESPN</span></header>
     <div class="p-body" id="pBody">${body}</div>
     <nav class="p-tabs">${TABS.map(([k, t]) => `<button data-tab="${k}" class="${nav.tab === k ? 'on' : ''}">${tabIcon(k)}<span>${t}</span></button>`).join('')}</nav>`;
   if (keep && nav.keepScroll) { $('#pBody').scrollTop = keep; }
@@ -334,7 +353,7 @@ function countUp(root, animate) {
   root.querySelectorAll('[data-count]').forEach((el) => {
     const to = +el.dataset.count; if (still || !Number.isFinite(to) || to <= 0) { el.textContent = to; return; }
     const t0 = performance.now(); el.textContent = 0;
-    const tick = (now) => { const k = Math.min(1, (now - t0) / 900); el.textContent = Math.round(to * (1 - (1 - k) ** 3)); if (k < 1 && el.isConnected) requestAnimationFrame(tick); };
+    const tick = (now) => { const k = Math.min(1, (now - t0) / 900); el.textContent = Math.round(to * (1 - (1 - k) ** 3)); if (k < 1 && el.isConnected) requestAnimationFrame(tick); else el.closest('.hchip')?.classList.add('pop'); };
     requestAnimationFrame(tick);
   });
 }

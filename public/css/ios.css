@@ -196,34 +196,52 @@ button.pp.xp { cursor: pointer; } button.pp.xp:hover i { box-shadow: 0 0 0 2px #
 .tac-kpi div { display: grid; gap: 2px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12); text-align: center; } .tac-kpi small { opacity: .7; } .tac-kpi b { font-size: 15px; }
 .tac-sum { margin: 8px 0 4px; font-weight: 600; } .tac-pts { margin: 4px 0 6px; padding-left: 18px; line-height: 1.5; }
 
-/* ---- 프로필 효과: 스타디움 조명 + 선수카드 (앱의 EvDesign/Effects.swift 와 같은 구성) ---- */
-.fmp.fm-hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #0A2E8A 0%, var(--brand) 35%, var(--brand-deep) 75%, #000F36 100%); box-shadow: var(--card-shadow), inset 0 1px 0 rgba(227, 165, 26, .55); }
-.fm-hero .fmp-b { position: relative; z-index: 1; }
-.fm-hero::before, .fm-hero::after { content: ''; position: absolute; top: 0; width: 22%; height: 180%; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, 0)); filter: blur(9px); transform-origin: 50% 0; }
-.fm-hero::before { left: 7%; animation: beamL 7s ease-in-out infinite; }
-.fm-hero::after { right: 7%; animation: beamR 8.5s ease-in-out infinite; }
+/* ---- 프로필 효과 2차: 팀 색 + 게임 같은 이펙트 (앱의 EvDesign/Effects.swift · TeamPalette.swift 와 같은 구성) ----
+   --t1 주색 · --t2 어두운 색 · --t3 발광색 은 히어로/피치에 인라인으로 내려온다(ios.js TEAM_PAL). */
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.fmp.fm-hero { --t1: #0B3FB8; --t2: #031A54; --t3: #F2B84B; position: relative; overflow: hidden; isolation: isolate; text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--t1) 62%, #fff) 0%, var(--t1) 38%, var(--t2) 100%); box-shadow: var(--card-shadow), 0 6px 22px color-mix(in srgb, var(--t1) 45%, transparent); }
+.fm-hero .fmp-b { position: relative; z-index: 2; }
+.fxl { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.fxl .aur { position: absolute; inset: -40% -60%; background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, var(--t3) 38%, transparent) 50%, transparent 62%); animation: aur 5.5s ease-in-out infinite; mix-blend-mode: screen; }
+@keyframes aur { 0% { transform: translateX(-45%); } 100% { transform: translateX(45%); } }
+.fxl .sp { position: absolute; bottom: -8px; left: var(--x); width: var(--z); height: var(--z); border-radius: 50%; background: var(--t3); box-shadow: 0 0 8px 2px var(--t3); opacity: 0; animation: spark var(--d) linear var(--w) infinite; }
+@keyframes spark { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 12% { opacity: .95; } 100% { transform: translate(calc((var(--z) - 5px) * 9), -170px) scale(.2); opacity: 0; } }
+.fxl .foilb { position: absolute; inset: 0; border-radius: inherit; padding: 2px; background: conic-gradient(from var(--ang), var(--t3), transparent 18%, color-mix(in srgb, var(--t3) 35%, #fff) 32%, transparent 48%, var(--t3) 64%, transparent 82%, var(--t3));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: spin 5s linear infinite; opacity: .95; }
+@keyframes spin { to { --ang: 360deg; } }
+.fm-hero::before, .fm-hero::after { content: ''; position: absolute; top: 0; width: 22%; height: 180%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0)); filter: blur(9px); transform-origin: 50% 0; }
+.fm-hero::before { left: 7%; animation: beamL 7s ease-in-out infinite; } .fm-hero::after { right: 7%; animation: beamR 8.5s ease-in-out infinite; }
 @keyframes beamL { 0%, 100% { transform: rotate(-22deg); } 50% { transform: rotate(-9deg); } }
 @keyframes beamR { 0%, 100% { transform: rotate(22deg); } 50% { transform: rotate(9deg); } }
-.fm-card .wm { position: absolute; right: 8px; top: -6px; z-index: 0; font-size: 104px; font-weight: 900; line-height: 1; color: rgba(255, 255, 255, .07); pointer-events: none; font-style: italic; }
-.av.ring { box-shadow: 0 0 0 2.5px #E3A51A, 0 0 14px rgba(227, 165, 26, .55); animation: glow 2.8s ease-in-out infinite; }
-.fm-card .crest { box-shadow: 0 0 16px rgba(255, 255, 255, .35); animation: glowW 2.8s ease-in-out infinite; }
-@keyframes glow { 0%, 100% { box-shadow: 0 0 0 2.5px #E3A51A, 0 0 8px rgba(227, 165, 26, .4); } 50% { box-shadow: 0 0 0 2.5px #F5C451, 0 0 20px rgba(227, 165, 26, .85); } }
-@keyframes glowW { 0%, 100% { box-shadow: 0 0 8px rgba(255, 255, 255, .25); } 50% { box-shadow: 0 0 20px rgba(255, 255, 255, .6); } }
+.fm-card .wm { position: absolute; right: 8px; top: -6px; z-index: 0; font-size: 104px; font-weight: 900; line-height: 1; color: rgba(255, 255, 255, .09); pointer-events: none; font-style: italic; }
+.ph b { text-shadow: 0 0 12px color-mix(in srgb, var(--t3) 60%, transparent), 0 1px 2px rgba(0, 0, 0, .5); }
+.av.ring { box-shadow: 0 0 0 2.5px var(--t3), 0 0 16px color-mix(in srgb, var(--t3) 70%, transparent); animation: glow 2.8s ease-in-out infinite; background: linear-gradient(160deg, var(--t1), var(--t2)); }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 2.5px var(--t3), 0 0 8px color-mix(in srgb, var(--t3) 40%, transparent); } 50% { box-shadow: 0 0 0 2.5px #fff, 0 0 24px var(--t3); } }
+.nx.halo .crest { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t3) 70%, transparent), 0 0 26px var(--t3); animation: halo 2.6s ease-in-out infinite; background: rgba(255, 255, 255, .92); color: var(--t2); }
+@keyframes halo { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t3) 55%, transparent), 0 0 14px var(--t3); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--t3) 90%, transparent), 0 0 34px var(--t3); } }
 .hchips { display: flex; gap: 6px; margin-top: 12px; }
-.hchip { flex: 1; min-width: 0; padding: 7px 4px 6px; border-radius: 10px; background: rgba(255, 255, 255, .10); border: 1px solid rgba(255, 255, 255, .18); display: grid; gap: 1px; }
+.hchip { position: relative; flex: 1; min-width: 0; padding: 7px 4px 6px; border-radius: 10px; display: grid; gap: 1px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .06)); border: 1px solid rgba(255, 255, 255, .28); backdrop-filter: blur(2px); }
 .hchip b { font-size: 24px; font-weight: 800; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; } .hchip b i { font-style: normal; font-size: 12px; margin-right: 4px; vertical-align: middle; }
 .hchip small { font-size: 10.5px; font-weight: 600; }
 .hchips.sm .hchip b { font-size: 17px; }
-.hchip.hot { border-color: rgba(227, 165, 26, .85); animation: glowG 2.8s ease-in-out infinite; } .hchip.hot b { color: var(--gold); }
-@keyframes glowG { 0%, 100% { box-shadow: 0 0 6px rgba(227, 165, 26, .35); } 50% { box-shadow: 0 0 16px rgba(227, 165, 26, .8); } }
+.hchip.hot { border-color: var(--t3); background: linear-gradient(160deg, color-mix(in srgb, var(--t3) 42%, transparent), rgba(255, 255, 255, .05)); animation: glowG 2.4s ease-in-out infinite; } .hchip.hot b { color: #fff; text-shadow: 0 0 10px var(--t3); }
+@keyframes glowG { 0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--t3) 40%, transparent); } 50% { box-shadow: 0 0 20px var(--t3); } }
+.hchip.pop::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle, #fff 0%, color-mix(in srgb, var(--t3) 60%, transparent) 40%, transparent 70%); animation: flash .7s ease-out forwards; pointer-events: none; }
+@keyframes flash { from { opacity: .95; transform: scale(.3); } to { opacity: 0; transform: scale(1.8); } }
+.pips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 8px; align-items: center; }
+.pips i { font-style: normal; font-size: 15px; animation: bounce .55s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: calc(.9s + var(--i) * 90ms); filter: drop-shadow(0 0 5px var(--t3)); }
+.pips em { font-style: normal; font-weight: 800; font-size: 12px; color: var(--t3); margin-left: 2px; }
+@keyframes bounce { from { opacity: 0; transform: translateY(-18px) scale(.3) rotate(-120deg); } to { opacity: 1; transform: none; } }
 .rise { animation: rise .5s cubic-bezier(.2, .8, .3, 1.1) both; animation-delay: calc(var(--i, 0) * 40ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .fm-kv .rrow.star .tl { color: var(--tx); font-weight: 700; } .fm-kv .rrow.star .fm-hl { color: var(--gold); }
 .ri { font-style: normal; margin-right: 5px; color: var(--gold); }
+.fm-kv .rrow td { border-bottom: 0; padding-bottom: 2px; } .fm-kv .rb td { padding: 0 0 7px; }
 .rbar { display: block; height: 3px; margin: 0; border-radius: 99px; background: var(--sf2); text-decoration: none; overflow: hidden; }
 .rbar s { display: block; height: 100%; text-decoration: none; border-radius: 99px; background: linear-gradient(90deg, rgba(0, 51, 153, .5), var(--brand)); transform-origin: left; animation: grow .7s .15s ease-out both; }
-.fm-kv .rrow td { border-bottom: 0; padding-bottom: 2px; } .fm-kv .rb td { padding: 0 0 7px; }
-.rb.star .rbar s, .rrow.star .rbar s { background: linear-gradient(90deg, rgba(227, 165, 26, .5), var(--gold)); }
+.rb.star .rbar s { background: linear-gradient(90deg, rgba(227, 165, 26, .5), var(--gold)); }
 @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .p-tags.foil b { position: relative; overflow: hidden; }
 .p-tags.foil b::after { content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 50%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent); animation: foil 3.6s ease-in-out infinite; }
@@ -231,10 +249,39 @@ button.pp.xp { cursor: pointer; } button.pp.xp:hover i { box-shadow: 0 0 0 2px #
 .radar .rs, .radar .rg { transform-origin: 50% 50%; transform-box: fill-box; }
 .radar .rs { animation: bloom .9s cubic-bezier(.2, .9, .3, 1.2) both; }
 @keyframes bloom { from { opacity: 0; transform: scale(.05); } to { opacity: 1; transform: none; } }
-.ab i { background-image: linear-gradient(90deg, rgba(255, 255, 255, .0), rgba(255, 255, 255, .28)); animation: grow .7s ease-out both; transform-origin: left; }
+.ab i { background-image: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .28)); animation: grow .7s ease-out both; transform-origin: left; }
+
+/* 구단·선수 화면의 상단 바: 팀 색 그라데이션 */
+.fm-nav[style] { background: linear-gradient(180deg, color-mix(in srgb, var(--t1) 80%, #fff), var(--t1) 55%, var(--t2)); box-shadow: 0 2px 14px color-mix(in srgb, var(--t3) 40%, transparent); transition: background .3s; }
+
+/* 베스트 11 · 라인업 피치: 밤 경기장 + 팀 색 방패 토큰 */
+.pitch { --t1: #0B3FB8; --t2: #031A54; --t3: #F2B84B; position: relative; overflow: hidden; isolation: isolate; border-radius: 12px; padding: 18px 4px 16px; gap: 18px;
+  background: repeating-linear-gradient(180deg, #1B5E37 0 36px, #226F44 36px 72px); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .28), 0 0 0 1px color-mix(in srgb, var(--t3) 60%, transparent), 0 8px 24px color-mix(in srgb, var(--t1) 40%, transparent); }
+.pitch .pl { position: relative; z-index: 3; }
+.pitch .lt { position: absolute; top: -10px; width: 30%; height: 140%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 80%); filter: blur(10px); transform-origin: 50% 0; }
+.pitch .l1 { left: 4%; animation: beamL 7s ease-in-out infinite; } .pitch .l2 { right: 4%; animation: beamR 8s ease-in-out infinite; }
+.pitch .cc { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); z-index: 1; pointer-events: none; animation: cc 3s ease-in-out infinite; }
+@keyframes cc { 0%, 100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0), inset 0 0 0 rgba(255, 255, 255, 0); } 50% { box-shadow: 0 0 24px color-mix(in srgb, var(--t3) 80%, transparent), inset 0 0 24px color-mix(in srgb, var(--t3) 35%, transparent); } }
+.pitch .sw { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(180deg, transparent 40%, rgba(255, 255, 255, .13) 50%, transparent 60%); animation: sweep 5s linear infinite; }
+@keyframes sweep { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+.pitch .vg { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0, 12, 24, .55) 100%); }
+.pp i { position: relative; width: 30px; height: 34px; border-radius: 9px 9px 15px 15px; background: linear-gradient(165deg, color-mix(in srgb, var(--t1) 55%, #fff) 0%, var(--t1) 45%, var(--t2) 100%); color: #fff; font-weight: 800; font-size: 13px; text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 2px var(--t3), 0 0 12px color-mix(in srgb, var(--t3) 70%, transparent), 0 3px 4px rgba(0, 0, 0, .4); }
+.pp small { background: linear-gradient(90deg, transparent, rgba(0, 12, 24, .72) 20%, rgba(0, 12, 24, .72) 80%, transparent); padding: 1px 8px; border-radius: 99px; }
+.pp .ga { background: rgba(0, 12, 24, .6); padding: 0 6px; border-radius: 99px; margin-top: 2px; }
+button.pp.xp:hover i { box-shadow: 0 0 0 2px #fff, 0 0 20px var(--t3); transform: translateY(-2px) scale(1.08); } button.pp.xp:active i { transform: scale(.94); }
+.pp i { transition: transform .15s, box-shadow .15s; }
+.pp.drop { animation: drop .7s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i) * 70ms); }
+@keyframes drop { 0% { opacity: 0; transform: translateY(-60px) scale(.6); filter: brightness(2.2); } 60% { filter: brightness(1.6); } 100% { opacity: 1; transform: none; filter: none; } }
+.pp.star i { box-shadow: 0 0 0 2.5px #FFD84A, 0 0 22px #FFD84A, 0 3px 4px rgba(0, 0, 0, .4); animation: aura 1.8s ease-in-out infinite; }
+@keyframes aura { 0%, 100% { box-shadow: 0 0 0 2.5px #FFD84A, 0 0 10px #FFD84A, 0 3px 4px rgba(0, 0, 0, .4); } 50% { box-shadow: 0 0 0 2.5px #fff6c2, 0 0 28px #FFD84A, 0 3px 4px rgba(0, 0, 0, .4); } }
+.pp .crown { position: absolute; top: -17px; text-decoration: none; font-size: 15px; z-index: 4; animation: bob 1.6s ease-in-out infinite; filter: drop-shadow(0 0 5px #FFD84A); }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.pp.xp { position: relative; }
 /* 같은 화면을 다시 그릴 때는 등장 효과를 반복하지 않는다 */
-.nofx .rise, .nofx .rbar s, .nofx .radar .rs, .nofx .ab i { animation: none; }
+.nofx .rise, .nofx .rbar s, .nofx .radar .rs, .nofx .ab i, .nofx .pp.drop, .nofx .pips i { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .fm-hero::before, .fm-hero::after, .av.ring, .fm-card .crest, .hchip.hot, .p-tags.foil b::after, .rise, .rbar s, .radar .rs, .ab i { animation: none; }
-  .fm-hero::before { transform: rotate(-16deg); } .fm-hero::after { transform: rotate(16deg); }
+  .fm-hero::before, .fm-hero::after, .fxl .aur, .fxl .sp, .fxl .foilb, .av.ring, .nx.halo .crest, .hchip.hot, .hchip.pop::after, .pips i, .p-tags.foil b::after, .rise, .rbar s, .radar .rs, .ab i,
+  .pitch .l1, .pitch .l2, .pitch .cc, .pitch .sw, .pp.drop, .pp.star i, .pp .crown { animation: none; }
+  .fxl .sp { display: none; } .fm-hero::before { transform: rotate(-16deg); } .fm-hero::after { transform: rotate(16deg); }
 }
