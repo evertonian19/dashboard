@@ -12,3 +12,18 @@
 .draft-banner[hidden] { display: none; }
 .draft-banner small { flex: 1 1 100%; font-weight: 500; color: var(--ink-3); }
 .draft-status { margin-right: auto; align-self: center; font-size: 13px; }
+
+/* 게시글 첨부파일: 아이콘이 왼쪽에 붙은 네모난 파일 칸 (링크에 filechip.js 가 data-ext 를 붙인다) */
+.post-body a.file-chip { display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; min-width: min(280px, 100%); margin: 8px 0; padding: 9px 14px 9px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.3; text-decoration: none; overflow-wrap: anywhere; cursor: pointer; transition: border-color .12s, background .12s; }
+.post-body a.file-chip:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue-soft) 55%, var(--surface)); }
+.post-body a.file-chip::before { content: attr(data-ext); display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 9px; background: #7A8296; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0; text-transform: uppercase; overflow: hidden; }
+.post-body a.file-chip::after { content: "내려받기"; margin-left: auto; padding-left: 14px; flex: none; color: var(--ink-3); font-size: 12px; font-weight: 500; }
+.post-body a.file-chip[data-ext="hwp"]::before, .post-body a.file-chip[data-ext="hwpx"]::before { background: #2A93DB; }
+.post-body a.file-chip[data-ext="doc"]::before, .post-body a.file-chip[data-ext="docx"]::before, .post-body a.file-chip[data-ext="rtf"]::before { background: #2B579A; }
+.post-body a.file-chip[data-ext="ppt"]::before, .post-body a.file-chip[data-ext="pptx"]::before { background: #C8492B; }
+.post-body a.file-chip[data-ext="xls"]::before, .post-body a.file-chip[data-ext="xlsx"]::before, .post-body a.file-chip[data-ext="csv"]::before { background: #1F7A4B; }
+.post-body a.file-chip[data-ext="pdf"]::before { background: #BF3A30; }
+.post-body a.file-chip[data-ext="png"]::before, .post-body a.file-chip[data-ext="jpg"]::before, .post-body a.file-chip[data-ext="jpeg"]::before, .post-body a.file-chip[data-ext="gif"]::before, .post-body a.file-chip[data-ext="webp"]::before { background: #7A5AD6; }
+.post-body a.file-chip[data-ext="zip"]::before { background: #B8860B; }
+.editor-body a.file-chip { user-select: all; }
+.editor-body a.file-chip::after { content: "첨부"; }

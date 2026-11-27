@@ -4,6 +4,7 @@ import { esc, toast } from '../../core/dom.js';
 import { fmtBytes } from '../../core/format.js';
 import { config, lifecycle } from '../../core/state.js';
 import { acceptOf } from '../../core/uploads.js';
+import { decorateFiles } from './filechip.js';
 
 // 붙여넣은 이미지의 형식 → 확장자 (서버가 받는 이미지 형식과 같다)
 const IMG_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
@@ -63,7 +64,8 @@ export function attachMedia(body, { exec, onChange }) {
       const { file: saved } = await api(`/files?kind=attachment&name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
       const tpl = document.createElement('template');
       tpl.innerHTML = asImage ? `<img src="/api/files/${saved.id}/raw" alt=""><br>`
-        : `<a href="/api/files/${saved.id}/raw?download">${esc(saved.name)}</a>&nbsp;`;
+        : `<a href="/api/files/${saved.id}/raw?download">${esc(saved.name)}</a><br>`;
+      decorateFiles(tpl.content, { editable: true });   // 파일은 아이콘이 붙은 칸으로
       mark.replaceWith(tpl.content);
       onChange();
     } catch (err) { mark.remove(); toast(`${file.name}: ${err.message}`, true); }

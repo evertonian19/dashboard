@@ -8,6 +8,7 @@ import { icon } from '../core/icons.js';
 import { attachDraft } from './board-editor/draft.js';
 import { attachMarkdownShortcuts } from './board-editor/markdown.js';
 import { attachMedia } from './board-editor/media.js';
+import { decorateFiles } from './board-editor/filechip.js';
 
 /* ------------------------------------------------------------------
    Menu 3: 게시판 — 목록(#menu3) · 글쓰기(#menu3?write=1) · 글 보기(#menu3?post=ID)
@@ -190,6 +191,7 @@ async function boardWrite(root, menu, editId) {
     $('#postTitle').value = editing.title;
     $('#postCat').value = editing.category || '';
     body.innerHTML = editing.body;   // 서버가 허용 태그만 남겨 저장한 HTML
+    decorateFiles(body, { editable: true });
   }
 
   const media = attachMedia(body, { exec, onChange: () => draft.touch() });
@@ -274,6 +276,7 @@ async function boardPost(root, menu, id) {
       </form>
     </section>`;
 
+  decorateFiles(root.querySelector('.post-view'));   // 첨부 링크를 아이콘 붙은 파일 칸으로
   const list = $('#cmtList');
   const draw = () => {
     $('#cmtCount').textContent = comments.length ? `${comments.length}개` : '';

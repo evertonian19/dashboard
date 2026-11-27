@@ -1,6 +1,7 @@
 // 게시판 편집기: 자동 임시저장 — 이 브라우저(localStorage)에 보관했다가 새로고침·실수로 나가도 복원할 수 있게 한다.
 import { $, esc, toast } from '../../core/dom.js';
 import { lifecycle } from '../../core/state.js';
+import { decorateFiles } from './filechip.js';
 
 // 임시저장본을 다시 넣을 때: 서버가 허용하는 태그·속성만 남긴다 (서버도 저장할 때 한 번 더 정리한다)
 const ALLOWED_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'FONT', 'P', 'DIV', 'BR', 'H2', 'H3', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'A', 'IMG']);
@@ -69,6 +70,7 @@ export function attachDraft({ key, body, editing }) {
         $('#postTitle').value = old.title || '';
         $('#postCat').value = old.cat || '';
         body.innerHTML = cleanDraft(old.body);
+        decorateFiles(body, { editable: true });
         toast('임시저장된 글을 불러왔어요');
       } else store.clear();
       paused = false; banner.hidden = true; banner.innerHTML = '';
