@@ -29,6 +29,16 @@ function mountBoard(menu, params) {
   return boardList(root, menu, params.get('cat') || '');
 }
 
+const avatarColor = (t) => { let h = 0; for (const ch of String(t)) h = (h * 31 + ch.codePointAt(0)) % 6; return h; };
+function ago(iso) {
+  const sec = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!(sec >= 0) || sec > 7 * 86400) return fmtDateTime(iso);
+  if (sec < 60) return '방금 전';
+  if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
+  return `${Math.floor(sec / 86400)}일 전`;
+}
+
 async function boardList(root, menu, filter) {
   let posts, cats;
   try { [{ posts }, { categories: cats }] = await Promise.all([api('/posts'), api('/categories')]); }
@@ -68,15 +78,16 @@ async function boardList(root, menu, filter) {
         <button class="btn btn-soft" type="submit">추가</button>
       </form>
     </details>
-    <section class="card">
+    <section class="card board-list">
       <div class="card-head"><h2 class="card-title">게시글 <span class="muted">${shown.length ? `${shown.length}개` : ''}</span></h2>
         <button class="btn btn-ghost btn-sm" type="button" id="sortBtn">${icon('sort')} ${oldFirst ? '오래된순' : '최신순'}</button></div>
       ${shown.length ? `<ul class="rows">${shown.map((p) => `
-        <li class="row">
+        <li class="row${p.pinned ? ' is-pinned' : ''}">
+          <span class="post-avatar" data-c="${avatarColor(p.category || p.title)}" aria-hidden="true">${esc([...(p.category || p.title || '?')][0].toUpperCase())}</span>
           <a class="row-main post-link" href="#menu3?post=${p.id}">
-            <p class="row-title">${p.pinned ? `<span class="pin-mark" title="고정됨">${icon('pin')}</span>` : ''}${p.category ? `<span class="chip add cat-chip">${esc(p.category)}</span>` : ''}${esc(p.title)}</p>
-            <p class="post-excerpt">${esc(p.excerpt)}</p>
-            <p class="row-sub">${fmtDateTime(p.created_at)} · 댓글 ${p.comments}</p>
+            <p class="row-title">${p.pinned ? `<span class="pin-mark" title="고정됨">${icon('pin')}</span>` : ''}${p.category ? `<span class="chip add cat-chip" data-c="${avatarColor(p.category)}">${esc(p.category)}</span>` : ''}<span class="t">${esc(p.title)}</span></p>
+            ${p.excerpt ? `<p class="post-excerpt">${esc(p.excerpt)}</p>` : ''}
+            <p class="row-sub"><span>${ago(p.created_at)}</span><span class="cm" title="댓글">${icon('chat')} ${p.comments}</span></p>
           </a>
           <div class="row-actions">
             <button class="btn btn-ghost btn-sm pin-btn${p.pinned ? ' on' : ''}" type="button" data-pin="${p.id}" aria-pressed="${p.pinned ? 'true' : 'false'}" aria-label="${esc(p.title)} ${p.pinned ? '고정 해제' : '상단 고정'}" title="${p.pinned ? '고정 해제' : '상단 고정'}">${icon('pin')}</button>
@@ -263,7 +274,7 @@ async function boardPost(root, menu, id) {
     </header>
     <article class="card">
       <h1 class="post-title">${esc(post.title)}</h1>
-      <p class="row-sub">${post.category ? `<a class="chip add cat-chip" href="#menu3?cat=${post.category_id}">${esc(post.category)}</a>` : ''}${fmtDateTime(post.created_at)} 작성${post.updated_at ? ` · ${fmtDateTime(post.updated_at)} 수정` : ''}</p>
+      <p class="row-sub">${post.category ? `<a class="chip add cat-chip" data-c="${avatarColor(post.category)}" href="#menu3?cat=${post.category_id}">${esc(post.category)}</a>` : ''}${fmtDateTime(post.created_at)} 작성${post.updated_at ? ` · ${fmtDateTime(post.updated_at)} 수정` : ''}</p>
       <!-- 본문은 서버가 허용된 서식 태그만 남겨 저장한 HTML입니다 -->
       <div class="post-body post-view">${post.body}</div>
     </article>
