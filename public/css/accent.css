@@ -53,3 +53,57 @@
 .cat-chip[data-c="3"] { --cc: #0D9488; } .cat-chip[data-c="4"] { --cc: #2563EB; } .cat-chip[data-c="5"] { --cc: #DB2777; }
 :root[data-theme="dark"] .cat-chip[data-c] { border-color: color-mix(in srgb, var(--cc) 50%, transparent); background: color-mix(in srgb, var(--cc) 28%, transparent); color: color-mix(in srgb, var(--cc) 30%, #fff); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cat-chip[data-c] { border-color: color-mix(in srgb, var(--cc) 50%, transparent); background: color-mix(in srgb, var(--cc) 28%, transparent); color: color-mix(in srgb, var(--cc) 30%, #fff); } }
+
+/* ---- 메인 홈: 메탈릭 패널 (브러시드 티타늄 + 크롬 반사 + 금속 테두리 + 베벨) ---- */
+:root {
+  --mt-face: linear-gradient(135deg, #F8F9FB 0%, #C9CED8 28%, #EEF1F5 50%, #AEB5C2 74%, #E4E8EE 100%);
+  --mt-rim: linear-gradient(135deg, #FFFFFF, #8D95A6 30%, #E9ECF1 50%, #7B8396 75%, #F4F6F9);
+  --mt-brush: repeating-linear-gradient(90deg, rgba(255,255,255,.35) 0 1px, rgba(90,100,125,.09) 1px 2px);
+  --mt-bevel: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 4px rgba(60,70,95,.22);
+  --mt-drop: 0 14px 26px -12px rgba(30,35,60,.55), 0 2px 3px rgba(30,35,60,.18);
+  --mt-eng-hi: rgba(255,255,255,.85); --mt-eng-lo: transparent;
+  --mt-chrome: linear-gradient(180deg, #2B3142 0%, #6B7388 48%, #232837 52%, #4A5266 100%);
+}
+:root[data-theme="dark"] {
+  --mt-face: linear-gradient(135deg, #4A5162 0%, #23283A 28%, #3A4152 50%, #161A26 74%, #2C3242 100%);
+  --mt-rim: linear-gradient(135deg, #8C94A8, #2A3040 30%, #6D768C 50%, #232837 75%, #9AA2B6);
+  --mt-brush: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.14) 1px 2px);
+  --mt-bevel: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.5);
+  --mt-drop: 0 16px 28px -12px rgba(0,0,0,.9), 0 2px 3px rgba(0,0,0,.6);
+  --mt-eng-hi: transparent; --mt-eng-lo: rgba(0,0,0,.7);
+  --mt-chrome: linear-gradient(180deg, #FFFFFF 0%, #9CA5BA 48%, #E3E8F2 52%, #B4BCCF 100%);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --mt-face: linear-gradient(135deg, #4A5162 0%, #23283A 28%, #3A4152 50%, #161A26 74%, #2C3242 100%);
+  --mt-rim: linear-gradient(135deg, #8C94A8, #2A3040 30%, #6D768C 50%, #232837 75%, #9AA2B6);
+  --mt-brush: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.14) 1px 2px);
+  --mt-bevel: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.5);
+  --mt-drop: 0 16px 28px -12px rgba(0,0,0,.9), 0 2px 3px rgba(0,0,0,.6);
+  --mt-eng-hi: transparent; --mt-eng-lo: rgba(0,0,0,.7);
+  --mt-chrome: linear-gradient(180deg, #FFFFFF 0%, #9CA5BA 48%, #E3E8F2 52%, #B4BCCF 100%);
+} }
+
+#homeGrid > .card { position: relative; overflow: hidden; isolation: isolate; border: 1.5px solid transparent; border-radius: 14px;
+  background: var(--mt-brush) padding-box, var(--mt-face) padding-box, var(--mt-rim) border-box; box-shadow: var(--mt-bevel), var(--mt-drop); }
+#homeGrid > .card::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; mix-blend-mode: overlay;
+  background: linear-gradient(115deg, transparent 18%, rgba(255,255,255,.75) 30%, transparent 40%, transparent 56%, rgba(255,255,255,.5) 62%, transparent 66%); background-size: 100% 100%; transition: transform .9s ease; }
+#homeGrid > .card::after { display: none; }
+#homeGrid > a.card:hover { transform: translateY(-2px); background: var(--mt-brush) padding-box, var(--mt-face) padding-box, linear-gradient(135deg, #E9DDFF, #7C3AED 35%, #C4B5FD 55%, #4F46E5 80%, #E9DDFF) border-box; box-shadow: var(--mt-bevel), 0 18px 30px -12px rgba(124,58,237,.6); }
+#homeGrid > a.card:hover::before { transform: translateX(14%); }
+#homeGrid > .card .card-label, #homeGrid > .card .card-note { text-shadow: 0 1px 0 var(--mt-eng-hi), 0 -1px 0 var(--mt-eng-lo); }
+#homeGrid > .card .card-value { background: var(--mt-chrome); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 1px 0 var(--mt-eng-hi)); }
+#homeGrid > .card .card-head { margin: -16px -18px 14px; border-bottom: 1px solid #A78BFA99; background: linear-gradient(180deg, #4D5568 0%, #2A3043 12%, #1B1F2C 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(124,58,237,.35); }
+#homeGrid > .card .card-title { text-shadow: 0 -1px 0 rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.12); }
+#homeGrid > .card .card-icon { border-radius: 12px; background: conic-gradient(from 210deg at 50% 50%, #7C3AED, #C4B5FD, #4F46E5, #2E1F73, #8B5CF6, #C4B5FD, #7C3AED); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 5px rgba(20,10,70,.55), 0 8px 14px -6px rgba(79,70,229,.8); }
+@media (prefers-reduced-motion: reduce) { #homeGrid > .card::before, #homeGrid > a.card:hover { transition: none; } #homeGrid > a.card:hover { transform: none; } }
+
+.hero#usage { position: relative; overflow: hidden; isolation: isolate; border: 1.5px solid transparent; border-radius: 16px; color: #fff;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, rgba(0,0,0,.18) 1px 2px) padding-box, linear-gradient(135deg, #5A6275 0%, #1C2030 30%, #3C4357 52%, #0E1018 80%, #262C3D 100%) padding-box, linear-gradient(135deg, #C9CFDB, #3A4152 30%, #9AA2B6 52%, #2A3040 78%, #D8DDE8) border-box;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 6px rgba(0,0,0,.6), 0 20px 36px -16px rgba(20,18,58,.9); }
+.hero#usage::before { display: block; content: ""; position: absolute; inset: 0; width: auto; height: auto; right: 0; top: 0; z-index: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(112deg, transparent 22%, rgba(255,255,255,.28) 34%, transparent 42%, transparent 54%, rgba(255,255,255,.14) 60%, transparent 64%), radial-gradient(460px 160px at 100% 0, rgba(124,58,237,.5), transparent 70%); }
+.hero#usage::after { display: none; }
+.hero#usage > * { position: relative; z-index: 1; }
+.hero#usage .hero-title { text-shadow: 0 -1px 0 rgba(0,0,0,.6); }
+.hero#usage .hero-stat { background: linear-gradient(180deg, rgba(0,0,0,.38), rgba(0,0,0,.14)); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: inset 0 3px 6px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.14); }
+:root[data-theme="dark"] #homeGrid > .card .card-label, :root[data-theme="dark"] #homeGrid > .card .card-note { color: #C3CAD8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #homeGrid > .card .card-label, :root:not([data-theme="light"]) #homeGrid > .card .card-note { color: #C3CAD8; } }
